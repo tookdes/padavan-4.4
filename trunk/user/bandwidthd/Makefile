@@ -15,6 +15,10 @@ config_test:
 
 configure:
 	( cd $(SRC_DIR) ; \
+	if [ ! -x ./configure ]; then \
+		autoconf -o configure configure.in || exit 1; \
+		chmod +x configure; \
+	fi ; \
 	CPPFLAGS="-I$(STAGEDIR)/include" \
 	LDFLAGS="-L$(STAGEDIR)/lib" \
 	./configure \
