@@ -17,7 +17,6 @@ void MakeIndexPages(int NumIps, struct SummaryData *SummaryData[])
 {
 	FILE *index;
 	char filename[50];
-	int i;
 
 	(void)NumIps;
 	(void)SummaryData;
