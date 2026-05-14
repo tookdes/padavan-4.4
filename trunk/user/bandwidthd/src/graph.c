@@ -22,7 +22,7 @@ void MakeIndexPages(int NumIps, struct SummaryData *SummaryData[])
 	(void)NumIps;
 	(void)SummaryData;
 
-	sprintf(filename, "%s/index.html", config.log_dir);
+	sprintf(filename, "/tmp/Bandwidthd_html/htdocs/index.html");
 	index = fopen(filename, "wt");
 	if (!index)
 		return;
