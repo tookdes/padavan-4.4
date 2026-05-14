@@ -100,10 +100,10 @@ int get_lan_dhcp6s_mode(void)
 
 int get_lan_dhcp6s_irt(void)
 {
-	int irt = 600;			// 10 min (IRT_MINIMUM=600)
+	int irt = 86400;			// 10 min (IRT_MINIMUM=600)
 
 	if (is_lan_addr6_static() == 1)
-		irt = 1800;		// 30 min
+		irt = 86400;		// 30 min
 
 	return irt;
 }
