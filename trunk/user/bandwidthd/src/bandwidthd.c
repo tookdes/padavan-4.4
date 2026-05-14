@@ -193,12 +193,12 @@ void bd_CollectingData(char *filename)
 		fprintf(index, "a.addEventListener('mouseenter',function(){\n");
 		fprintf(index, "a.style.transform='scale(1.05)';");
 		fprintf(index, "a.style.boxShadow='0 4px 10px rgba(0,0,0,0.2)';");
-		fprintf(index, "a.style.filter='brightness(90%)';");
+		fprintf(index, "a.style.filter='brightness(90%%)';");
 		fprintf(index, "});");
 		fprintf(index, "a.addEventListener('mouseleave',function(){");
 		fprintf(index, "a.style.transform='scale(1)';");
 		fprintf(index, "a.style.boxShadow='0 2px 5px rgba(0,0,0,0.15)';");
-		fprintf(index, "a.style.filter='brightness(100%)';");
+		fprintf(index, "a.style.filter='brightness(100%%)';");
 		fprintf(index, "});");
 		fprintf(index, "});");
 		fprintf(index, "});");
@@ -909,7 +909,9 @@ int main(int argc, char **argv)
 		}
 
     if (pcap_setfilter(pd, &fcode) < 0)
+        {
         pcap_perror(pd, "Error");
+        }
 
 	switch (DataLink = pcap_datalink(pd))
 		{
@@ -1031,7 +1033,7 @@ void PacketCallback(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
         }
     }
 
-inline void Credit(struct Statistics *Stats, const struct ip *ip)
+void Credit(struct Statistics *Stats, const struct ip *ip)
     {
     unsigned long size;
     const struct tcphdr *tcp;
@@ -1939,7 +1941,7 @@ void RecoverDataFromCDF(void)
 // ****** FindIp **********
 // ****** Returns or allocates an Ip's data structure
 
-inline struct IPData *FindIp(uint32_t ipaddr)
+struct IPData *FindIp(uint32_t ipaddr)
     {
     unsigned int counter;
     
@@ -1961,7 +1963,7 @@ inline struct IPData *FindIp(uint32_t ipaddr)
 
 size_t ICGrandTotalDataPoints = 0;
 
-__attribute__ ((gnu_inline)) char inline *HostIp2CharIp(unsigned long ipaddr, char *buffer)
+char *HostIp2CharIp(unsigned long ipaddr, char *buffer)
     {
 	struct in_addr in_addr;
 	char *s;

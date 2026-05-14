@@ -197,16 +197,16 @@ void            PacketCallback(u_char *user, const struct pcap_pkthdr *h, const 
 void RecoverDataFromCDF(void);
 
 // ************ This function converts and IP to a char string
-__attribute__ ((gnu_inline)) char inline 	*HostIp2CharIp(unsigned long ipaddr, char *buffer);
+char 	*HostIp2CharIp(unsigned long ipaddr, char *buffer);
 
 // ************ This function converts the numbers for each quad into an IP
-inline uint32_t IpAddr(unsigned char q1, unsigned char q2, unsigned char q3, unsigned char q4);
+uint32_t IpAddr(unsigned char q1, unsigned char q2, unsigned char q3, unsigned char q4);
 
 // ************ This function adds the packet's size to the proper entries in the data structure
 void     Credit(struct Statistics *Stats, const struct ip *ip);
 
 // ************ Finds an IP in our IPTable
-inline struct IPData *FindIp(uint32_t ipaddr);
+struct IPData *FindIp(uint32_t ipaddr);
 
 // ************ Writes our IPTable to Disk or to the Ram cache
 void            CommitData(time_t timestamp);
@@ -221,7 +221,7 @@ unsigned long long GraphData(gdImagePtr im, gdImagePtr im2, struct IPDataStore *
 
 
 // ************ Misc
-inline void     DstCredit(uint32_t ipaddr, unsigned int psize);
+void     DstCredit(uint32_t ipaddr, unsigned int psize);
 void			MakeIndexPages(int NumGraphs, struct SummaryData *SummaryData[]);
 
 // ************ Pgsql
@@ -232,4 +232,3 @@ void sqliteStoreIPData(struct IPData IncData[]);
 
 extern const char *logo_base64;
 extern const char *legend_base64;
-
