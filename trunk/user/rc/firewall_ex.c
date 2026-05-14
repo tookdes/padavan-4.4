@@ -1300,10 +1300,11 @@ ipt_mangle_rules(const char *man_if, const char *wan_if, int use_man)
 			fput_int("/proc/sys/net/ipv4/ip_default_ttl", i_wan_ttl_value);
 	}
 
-	if (i_wan_ttl_fix) {
-		module_smart_load("iptable_mangle", NULL);
+	module_smart_load("iptable_mangle", NULL);
+	module_smart_load("xt_TCPMSS", NULL);
+
+	if (i_wan_ttl_fix)
 		module_smart_load("xt_HL", NULL);
-	}
 
 	if (!(fp=fopen(ipt_file, "w")))
 		return;
@@ -1316,6 +1317,8 @@ ipt_mangle_rules(const char *man_if, const char *wan_if, int use_man)
 	fprintf(fp, ":%s %s [0:0]\n", "POSTROUTING", "ACCEPT");
 
 	dtype = "PREROUTING";
+
+	fprintf(fp, "-A POSTROUTING ! -o %s -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n", IFNAME_BR);
 
 	if (i_wan_ttl_fix) {
 		const char *viptv_if = man_if;
@@ -1336,8 +1339,7 @@ ipt_mangle_rules(const char *man_if, const char *wan_if, int use_man)
 	fprintf(fp, "COMMIT\n\n");
 	fclose(fp);
 
-	if (i_wan_ttl_fix || is_module_loaded("iptable_mangle"))
-		doSystem("iptables-restore %s", ipt_file);
+	doSystem("iptables-restore %s", ipt_file);
 }
 
 static void
@@ -1697,6 +1699,9 @@ ip6t_mangle_rules(char *man_if)
 	FILE *fp;
 	const char *ipt_file = "/tmp/ip6t_mangle.rules";
 
+	module_smart_load("ip6table_mangle", NULL);
+	module_smart_load("xt_TCPMSS", NULL);
+
 	if (!(fp=fopen(ipt_file, "w")))
 		return;
 
@@ -1707,11 +1712,12 @@ ip6t_mangle_rules(char *man_if)
 	fprintf(fp, ":%s %s [0:0]\n", "OUTPUT", "ACCEPT");
 	fprintf(fp, ":%s %s [0:0]\n", "POSTROUTING", "ACCEPT");
 
+	fprintf(fp, "-A POSTROUTING ! -o %s -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n", IFNAME_BR);
+
 	fprintf(fp, "COMMIT\n\n");
 	fclose(fp);
 
-	if (is_module_loaded("ip6table_mangle"))
-		doSystem("ip6tables-restore %s", ipt_file);
+	doSystem("ip6tables-restore %s", ipt_file);
 }
 
 static void
