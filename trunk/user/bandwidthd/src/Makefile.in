@@ -4,8 +4,8 @@ CC = @CC@
 LDFLAGS = @LDFLAGS@ @LIBS@
 OBS= bandwidthd.o graph.o sqlite.o conf.tab.o conf.l.o
 
-CFLAGS= -Wall @CFLAGS@ @CPPFLAGS@ @DEFS@
-NONWALLCFLAGS= @CFLAGS@ @CPPFLAGS@ @DEFS@
+CFLAGS= -Wall @CFLAGS@ @CPPFLAGS@ @DEFS@ $(COPTS)
+NONWALLCFLAGS= @CFLAGS@ @CPPFLAGS@ @DEFS@ $(COPTS)
 
 # Debugging stuff
 #CFLAGS += -Wall -pg -DPROFILE
@@ -30,6 +30,8 @@ clean:
 # Resets us to distributable code
 dist-clean: conf.tab.c conf.l.c clean
 	rm -f config.h config.log config.status Makefile
+
+distclean: dist-clean
 
 # Deletes all derived files
 # You must have flex, bison, and autoconf to build the source if you run this

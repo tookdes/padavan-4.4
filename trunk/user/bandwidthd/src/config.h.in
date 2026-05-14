@@ -75,6 +75,9 @@
 /* Define if you have the `memset' function. */
 #undef HAVE_MEMSET
 
+/* Disable graphing support for firmware builds */
+#undef NOGRAPH
+
 /* Define if you have the <ndir.h> header file, and it defines `DIR'. */
 #undef HAVE_NDIR_H
 

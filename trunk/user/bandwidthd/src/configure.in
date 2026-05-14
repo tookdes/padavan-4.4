@@ -17,60 +17,11 @@ AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_LEX
 
-
-# May be required for libgd on bsd
-AC_PATH_X
-if test -n "$x_libraries" && test "x$x_libraries" != xNONE ; then
-	LDFLAGS="$LDFLAGS -L$x_libraries"
-fi
-
-# May be equired for BSD
-LDFLAGS="$LDFLAGS -L/usr/local/lib"
-
-CPPFLAGS="$CPPFLAGS -I/usr/local/include"
-
-#Check for Darwin sw directory
-AC_CHECK_FILE(/sw/lib, LDFLAGS="$LDFLAGS -L/sw/lib")
-AC_CHECK_FILE(/sw/include, CPPFLAGS="$CPPFLAGS -I/sw/include")
-
-#Check for NetBSD usr/pkg directory
-AC_CHECK_FILE(/usr/pkg/lib, LDFLAGS="$LDFLAGS -L/usr/pkg/lib")
-AC_CHECK_FILE(/usr/pkg/include, CPPFLAGS="$CPPFLAGS -I/usr/pkg/include")
-
-# Required for solaris
-AC_CHECK_LIB(socket, connect)
-AC_CHECK_LIB(nsl, gethostbyname)
-AC_CHECK_LIB(resolv, inet_aton)
-
-# Required for openbsd png library
-AC_CHECK_LIB(m, pow)
-
-# Required for gd under netbsd
-AC_CHECK_LIB(iconv, libiconv_open)
-
-# Optional Libraries for graphing support
-AC_CHECK_LIB(png, png_read_info,
-	[AC_CHECK_LIB(gd, gdImageCreate,
-		[AC_CHECK_HEADERS([gd.h],,
-			[AC_CHECK_HEADERS([gd/gd.h],,
-				[AC_MSG_WARN([Bandwidthd cannot find gd.h, graphing disabled])])])]
-		[AC_MSG_WARN([Bandwidthd cannot find libgd, graphing disabled])])],
-	[AC_MSG_WARN([Bandwidthd cannot find libpng, graphing disabled])])
-
-# Optional: define NOGRAPH if libgd is not available
-if test "x$ac_cv_lib_gd_gdImageCreate" != "xyes" -o "x$ac_cv_lib_png_png_read_info" != "xyes"; then
-	AC_DEFINE(NOGRAPH, 1, [Disable graphing support when libgd/libpng unavailable])
-fi
+AC_DEFINE(NOGRAPH, 1, [Disable graphing support for firmware builds])
 
 # Required Library
 AC_CHECK_LIB(pcap, pcap_open_live, ,
 	[AC_CHECK_LIB(wpcap, pcap_open_live, ,[AC_MSG_ERROR([Bandwidthd requires but cannot find libpcap])])])
-
-# Optional Library
-AC_CHECK_FILE(/usr/local/pgsql/lib, LDFLAGS="$LDFLAGS -L/usr/local/pgsql/lib")
-AC_CHECK_FILE(/usr/local/pgsql/include, CPPFLAGS="$CPPFLAGS -I/usr/local/pgsql/include")
-AC_CHECK_LIB(pq, PQconnectdb,
-	[AC_CHECK_LIB(pq,PQexecParams, ,AC_MSG_WARN([libpq exists but is too old... bandwidthd requires support for PQexecParams]))])
 
 AC_CHECK_LIB(sqlite3, sqlite3_open, ,AC_MSG_WARN([sqlite3 is recommended for storage of data but cannot be found]))
 
@@ -116,11 +67,8 @@ AC_DEFINE_UNQUOTED(TCPHDR_DPORT,$TCPHDR_DPORT,[dest port field name in tcphdr])
 
 
 # Checks for library functions.
-AC_FUNC_MALLOC
 AC_HEADER_STDC
-AC_FUNC_MKTIME
 AC_TYPE_SIGNAL
-AC_FUNC_STAT
 AC_CHECK_FUNCS([alarm gethostbyaddr inet_ntoa memset strdup strftime pcap_findalldevs])
 
 AC_OUTPUT(Makefile)

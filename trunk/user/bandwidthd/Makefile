@@ -10,15 +10,13 @@ config_test:
 	( if [ -f $(SRC_DIR)/config_done ]; then \
 		echo "the same configuration"; \
 	else \
-		make configure \&\& touch $(SRC_DIR)/config_done; \
+		$(MAKE) configure && touch $(SRC_DIR)/config_done; \
 	fi )
 
 configure:
 	( cd $(SRC_DIR) ; \
-	if [ ! -x ./configure ]; then \
-		autoconf -o configure configure.in || exit 1; \
-		chmod +x configure; \
-	fi ; \
+	autoconf -o configure configure.in || exit 1; \
+	chmod +x configure; \
 	CPPFLAGS="-I$(STAGEDIR)/include" \
 	LDFLAGS="-L$(STAGEDIR)/lib" \
 	./configure \

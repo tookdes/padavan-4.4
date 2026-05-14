@@ -126,24 +126,24 @@ void signal_handler(int sig)
   
     		switch (config.tag) {    
         		case '1':    
-            		tag_desc = "每日流量统计主进程";    
+                tag_desc = "daily bandwidthd process";
             		break;    
         		case '2':    
-            		tag_desc = "每周流量统计子进程";    
+                tag_desc = "weekly bandwidthd process";
             		break;    
         		case '3':    
-            		tag_desc = "每月流量统计子进程";    
+                tag_desc = "monthly bandwidthd process";
             		break;    
         		case '4':    
-            		tag_desc = "每年流量统计子进程";    
+                tag_desc = "yearly bandwidthd process";
             		break;    
         		default:    
-            		tag_desc = "流量统计子进程";    
+                tag_desc = "bandwidthd process";
             		break;    
     		}   
   
     		// 输出更具可读性的日志  
-    		syslog(LOG_INFO, "%s 正常退出", tag_desc);;
+        syslog(LOG_INFO, "%s exited normally", tag_desc);
   
     		exit(0);  
     		break;
@@ -383,7 +383,7 @@ pid_t http_server_pid = 0;  // 记录HTTP服务器PID
 void start_http_server(int port) {
     pid_t pid = fork();
     if (pid < 0) {
-        syslog(LOG_ERR, "无法 fork HTTP 子进程");
+        syslog(LOG_ERR, "failed to fork HTTP server child");
         return;
     } else if (pid > 0) {
 		waitpid(pid, NULL, 0);

@@ -9,12 +9,13 @@ all: download
 
 download:
 	( if [ ! -f $(THISDIR)/naiveproxy.tar.xz ]; then \
-		curl -L --create-dirs $(NAIVE_URL) -o $(THISDIR)/naiveproxy.tar.xz ; \
+		curl -fL --retry 3 --create-dirs $(NAIVE_URL) -o $(THISDIR)/naiveproxy.tar.xz ; \
 	fi )
 	( if [ ! -d $(THISDIR)/naiveproxy ]; then \
 		mkdir -p $(THISDIR)/naiveproxy && \
 		tar xJf $(THISDIR)/naiveproxy.tar.xz -C $(THISDIR)/naiveproxy --strip-components=1 ; \
 	fi )
+	test -x $(THISDIR)/naiveproxy/naive
 
 clean:
 	rm -rf $(THISDIR)/naiveproxy
@@ -22,4 +23,4 @@ clean:
 
 romfs:
 	$(ROMFSINST) -p +x $(THISDIR)/naiveproxy/naive /usr/bin/naive
-	$(ROMFSINST) $(THISDIR)/naiveproxy/ca-certificates.crt /etc_ro/naive-ca-certificates.crt
+	$(ROMFSINST) $(THISDIR)/naiveproxy/config.json /etc_ro/naiveproxy_config.json
