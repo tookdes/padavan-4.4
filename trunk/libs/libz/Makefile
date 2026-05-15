@@ -1,5 +1,5 @@
 SRC_NAME=zlib-1.3.2
-SRC_URL=https://www.zlib.net/$(SRC_NAME).tar.gz
+SRC_URL=https://github.com/madler/zlib/releases/download/v1.3.2/$(SRC_NAME).tar.gz
 
 all: download_test extract_test config_test
 	$(MAKE) -j$(HOST_NCPU) -C $(SRC_NAME)
