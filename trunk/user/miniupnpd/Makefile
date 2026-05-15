@@ -24,7 +24,7 @@ extract_test:
 	( if [ ! -d $(SRC_NAME) ]; then \
 		tar zxf $(SRC_NAME).tar.gz; \
 		sed -i '/#define ENABLE_EVENTS/d' $(SRC_NAME)/configure; \
-		sed -i '/#include <libiptc\/libiptc.h>/i#define IPTABLES_143' $(SRC_NAME)/netfilter/iptcrdr.c; \
+		sed -i 's|#include <libiptc/libiptc.h>|#define IPTABLES_143\n#include <libiptc/libiptc.h>|' $(SRC_NAME)/netfilter/iptcrdr.c; \
 		sed -i 's/ upnpevents\.o//' $(SRC_NAME)/objects.mk; \
 	fi )
 
