@@ -4099,6 +4099,24 @@ do_export_ovpn_client(const char *url, FILE *stream)
 }
 #endif
 
+#if defined(APP_BANDWIDTHD)
+static void
+do_bandwidthd_file(const char *url, FILE *stream)
+{
+	char path[PATH_MAX];
+	const char *name = url;
+
+	if (strncmp(name, "bandwidthd/", 11) == 0)
+		name += 11;
+
+	if (*name == '\0')
+		name = "lljk.html";
+
+	snprintf(path, sizeof(path), "/tmp/Bandwidthd_html/%s", name);
+	do_file(path, stream);
+}
+#endif
+
 static char syslog_txt[] =
 "Content-Disposition: attachment;\r\n"
 "filename=syslog.txt"
@@ -4176,6 +4194,11 @@ struct mime_handler mime_handlers[] = {
 	{ "**.jpg", "image/jpeg", NULL, NULL, do_file, 0 }, // 2012.06 Eagle23
 	{ "**.ico", "image/x-icon", NULL, NULL, do_file, 0 }, // 2013.04 Eagle23
 	{ "**.svg", "image/svg+xml", NULL, NULL, do_file, 0 }, // 2016.04 Volt1
+
+	/* Bandwidthd reports are generated plain HTML and must not pass EJ parsing. */
+	{ "bandwidthd/**.htm*", "text/html", no_cache_IE, NULL, do_bandwidthd_file, 1 },
+	{ "bandwidthd/**.png", "image/png", no_cache_IE, NULL, do_bandwidthd_file, 1 },
+	{ "bandwidthd/**.gif", "image/gif", no_cache_IE, NULL, do_bandwidthd_file, 1 },
 
 	/* no-cached html/asp files with translations */
 	{ "**.htm*", "text/html", no_cache_IE, do_html_apply_post, do_ej, 1 },

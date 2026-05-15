@@ -1,0 +1,74 @@
+# Per-project line ending control for Padavan firmware
+# Ensures Linux-compatible LF line endings regardless of host OS
+
+# Default: all text files use LF
+* text=auto eol=lf
+
+# Shell scripts and build files must use LF
+*.sh text eol=lf
+*.bash text eol=lf
+Makefile text eol=lf
+Makefile.in text eol=lf
+configure text eol=lf
+configure.in text eol=lf
+config.sub text eol=lf
+config.guess text eol=lf
+install-sh text eol=lf
+*.ac text eol=lf
+*.am text eol=lf
+*.m4 text eol=lf
+
+# C/C++ source files
+*.c text eol=lf
+*.h text eol=lf
+*.cpp text eol=lf
+*.cc text eol=lf
+*.hh text eol=lf
+*.hpp text eol=lf
+
+# Scripts and configs
+*.pl text eol=lf
+*.py text eol=lf
+*.js text eol=lf
+*.php text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.xml text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.conf text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+*.dat text eol=lf
+*.tab text eol=lf
+*.y text eol=lf
+*.l text eol=lf
+
+# Binary files: never convert line endings
+*.gif binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.bmp binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+*.eot binary
+*.svg binary
+*.tar binary
+*.tar.gz binary
+*.tar.xz binary
+*.tar.bz2 binary
+*.zip binary
+*.7z binary
+*.trx binary
+*.bin binary
+*.elf binary
+*.o binary
+*.a binary
+*.so binary
+*.ko binary

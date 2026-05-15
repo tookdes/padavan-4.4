@@ -26,6 +26,21 @@
 
 #include "rc.h"
 
+#if defined(APP_BANDWIDTHD)
+static void
+start_bandwidthd(void)
+{
+	if (!pids("bandwidthd"))
+		doSystem("%s %s %s", "/usr/bin/bandwidthd", "-c", "/etc_ro/bandwidthd.conf");
+}
+
+static void
+stop_bandwidthd(void)
+{
+	doSystem("killall %s %s", "-q", "bandwidthd");
+}
+#endif
+
 void
 stop_syslogd(void)
 {
@@ -785,6 +800,9 @@ doSystem("/usr/sbin/skipd -d /etc/storage/db");
 	system("/usr/bin/iappd.sh restart");
 	system("modprobe xt_TPROXY");
 	system("/usr/bin/iappd.sh test");
+#if defined(APP_BANDWIDTHD)
+	start_bandwidthd();
+#endif
 	return 0;
 }
 
@@ -855,6 +873,9 @@ stop_services(int stopall)
 	stop_networkmap();
 	stop_lltd();
 	stop_detect_internet();
+#if defined(APP_BANDWIDTHD)
+	stop_bandwidthd();
+#endif
 	stop_rstats();
 	stop_infosvr();
 	stop_crond();

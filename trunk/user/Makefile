@@ -164,6 +164,8 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_WIREGUARD),y)
 dir_y += wireguard
 dir_y += wireguard-tools
 endif
+dir_$(CONFIG_FIRMWARE_INCLUDE_NAIVEPROXY)							+= naiveproxy
+dir_$(CONFIG_FIRMWARE_INCLUDE_BANDWIDTHD)							+= bandwidthd
 dir_$(SAMBA_ENABLED)				+= samba36
 dir_$(SAMBA_ENABLED)				+= wsdd2
 dir_$(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS)	+= chnroute

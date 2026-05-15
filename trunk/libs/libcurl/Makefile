@@ -1,5 +1,5 @@
-SRC_NAME=curl-7.75.0
-SRC_URL=https://github.com/curl/curl/releases/download/curl-7_75_0/curl-7.75.0.tar.xz
+SRC_NAME=curl-8.20.0
+SRC_URL=https://curl.se/download/$(SRC_NAME).tar.xz
 
 LDFLAGS += -Wl,-rpath-link=$(STAGEDIR)/lib
 
@@ -14,7 +14,6 @@ download_test:
 extract_test:
 	( if [ ! -d $(SRC_NAME) ]; then \
 		tar xf $(SRC_NAME).tar.xz; \
-		patch -d $(SRC_NAME) -p1 -i ../no_docs_test.patch; \
 	fi )
 
 config_test:
@@ -37,11 +36,14 @@ configure:
 		--disable-rtsp \
 		--disable-telnet \
 		--disable-tftp \
+		--disable-mqtt \
 		--disable-smtp \
 		--disable-pop3 \
 		--disable-imap \
+		--disable-websockets \
 		--disable-sspi \
 		--disable-dict \
+		--disable-smb \
 		--disable-ares \
 		--disable-debug \
 		--disable-curldebug \
@@ -53,6 +55,11 @@ configure:
 		--without-gnutls \
 		--without-ca-bundle \
 		--without-libidn \
+		--without-libidn2 \
+		--without-libpsl \
+		--without-nghttp2 \
+		--without-brotli \
+		--without-zstd \
 		--without-libssh2 \
 		--without-krb4 \
 		--without-nss \

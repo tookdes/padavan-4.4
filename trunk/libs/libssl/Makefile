@@ -1,4 +1,4 @@
-SRC_NAME=openssl-1.1.1k
+SRC_NAME=openssl-3.0.20
 SRC_URL=https://www.openssl.org/source/$(SRC_NAME).tar.gz
 
 # openssl use CROSS_COMPILE prefix
@@ -20,7 +20,7 @@ OPENSSL_CIPHERS = no-capieng no-cms no-rfc3779 no-seed \
   no-cast no-whirlpool no-sctp no-srp no-ssl2 no-ssl3 \
   no-async no-blake2 no-hw-padlock no-aria no-hw \
   no-devcryptoeng no-ssl3-method no-tests no-sm2 \
-  no-sm3 no-sm4 no-afalgeng no-comp
+  no-sm3 no-sm4 no-afalgeng no-comp no-module no-legacy
 
 ifneq ($(CONFIG_FIRMWARE_INCLUDE_SSWAN),y)
 OPENSSL_CIPHERS += no-rc2
@@ -41,7 +41,6 @@ download_test:
 extract_test:
 	( if [ ! -d $(SRC_NAME) ]; then \
 		tar -xf $(SRC_NAME).tar.gz; \
-		patch -d $(SRC_NAME) -p1 < $(SRC_NAME).patch; \
 	fi )
 
 config_test:

@@ -1,87 +1,223 @@
-# padavan-4.4 #
+# padavan-4.4 K2P custom firmware
 
-This project is based on original rt-n56u with latest mtk 4.4.198 kernel, which is fetch from D-LINK GPL code.
+## 中文说明
 
-- Features
-  - Based on 4.4.198 Linux kernel
-  - Support MT7621 based devices
-  - Support MT7615D/MT7615N/MT7915D wireless chips
-  - Support raeth and mt7621 hwnat with legency driver
-  - Support qca shortcut-fe
-  - Support IPv6 NAT based on netfilter
-  - Support WireGuard integrated in kernel
-  - Support fullcone NAT (by Chion82)
-  - Support LED&GPIO control via sysfs
+这是一个面向 Phicomm K2P 的 Padavan 4.4 内核定制分支，基于 `meisreallyba/padavan-4.4` 继续维护。当前目标不是做全设备通用固件，而是优先保证 K2P 在 16 MB flash 内可用、核心网络组件较新、CI 可重复编译。
 
+### 当前改动摘要
 
-- Supported devices
-  - CR660x
-  - JCG-Q20
-  - JCG-AC860M
-  - JCG-836PRO
-  - JCG-Y2
-  - DIR-878
-  - DIR-882
-  - K2P
-  - K2P-USB
-  - NETGEAR-BZV
-  - MR2600
-  - MI-4
-  - MI-R3G
-  - MI-R3P
-  - R2100
-  - XY-C1
+- 仅在 GitHub Actions 中编译 `K2P`，不再构建其他设备。
+- 保留 Linux 4.4.198 / MT7621 / MT7615 5.0.4.0 无线驱动基础。
+- 更新关键网络组件：`dnsmasq 2.92rel2`、`OpenSSL 3.0.20`、`curl 8.20.0`、`zlib 1.3.2`、`miniupnpd 2.3.10`。
+- 关闭不需要的大体积代理/隧道组件，避免固件超过 16 MB：NaiveProxy、Shadowsocks、ZeroTier、AdGuardHome、V2Ray、Trojan 等默认不编译。
+- 增加默认 MSS clamp 规则，降低 PPPoE/IPv6 等环境下的 MTU/MSS 问题概率。
+- 调整 IPv6 RA/DHCPv6 默认 lifetime 到 86400 秒，避免 Windows 双网卡环境中 SLAAC 地址因短 lifetime 丢失。
+- 集成 `bandwidthd` 流量统计：固件内置二进制、默认配置、开机自启动，并通过主 Web 服务访问统计页面。
+- CI 产物上传到 GitHub Actions Artifact；WeTransfer 上传改为 release 场景下的非阻塞步骤，避免第三方 403 导致构建失败。
 
-- Compilation step
-  - Install dependencies
-    ```sh
-    # Debian/Ubuntu
-    sudo apt install unzip libtool-bin curl cmake gperf gawk flex bison nano xxd \
-        fakeroot kmod cpio git python3-docutils gettext automake autopoint \
-        texinfo build-essential help2man pkg-config zlib1g-dev libgmp3-dev \
-        libmpc-dev libmpfr-dev libncurses5-dev libltdl-dev wget libc-dev-bin
+### Bandwidthd 使用方法
 
-    # Archlinux/Manjaro
-    sudo pacman -Syu --needed git base-devel cmake gperf ncurses libmpc \
-            gmp python-docutils vim rpcsvc-proto fakeroot cpio help2man
+刷入本分支固件后，`bandwidthd` 会自动启动并监听 `br0`。统计页面由 `bandwidthd` 写入 `/tmp/Bandwidthd_html`，主 Web 服务会把 `/bandwidthd/*` 映射到该目录。
 
-    # Alpine
-    sudo apk add make gcc g++ cpio curl wget nano xxd kmod \
-        pkgconfig rpcgen fakeroot ncurses bash patch \
-        bsd-compat-headers python2 python3 zlib-dev \
-        automake gettext gettext-dev autoconf bison \
-        flex coreutils cmake git libtool gawk sudo
-    ```
-  - Clone source code
-    ```sh
-    git clone https://github.com/meisreallyba/padavan-4.4.git
-    ```
-  - Prepare toolchain
-    ```sh
-    cd padavan-4.4/toolchain-mipsel
+访问地址：
 
-    # (Recommend) Download prebuilt toolchain for x86_64 or aarch64 host
-    ./dl_toolchain.sh
+```text
+http://192.168.1.1/bandwidthd/lljk.html
+```
 
-    # or build toolchain with crosstool-ng
-    # ./build_toolchain
-    ```
-  - Modify template file and start compiling
-    ```sh
-    cd padavan-4.4/trunk
+页面说明：
 
-    # (Optional) Modify template file
-    # nano configs/templates/K2P.config
+- `lljk.html`：日流量统计。
+- `lljk2.html`：周流量统计。
+- `lljk3.html`：月流量统计。
+- `lljk4.html`：年流量统计。
 
-    # Start compiling
-    fakeroot ./build_firmware_modify K2P
+注意事项：
 
-    # To build firmware for other devices, clean the tree after previous build
-    ./clear_tree
-    ```
+- 不要访问 `/bandwidthd/` 目录 URL，Padavan 的内置 httpd 对结尾 `/` 的目录请求会判为非法；请访问具体 `.html` 文件。
+- 首次启动后等待几秒再刷新页面，因为统计页面由 daemon 启动后生成。
+- 当前默认监控 `192.168.1.0/24` 和 `br0`。如果 LAN 网段不是 `192.168.1.0/24`，需要后续改 `/etc_ro/bandwidthd.conf` 的生成逻辑或在固件源码里调整默认配置。
+- `bandwidthd` 会让 `br0` 进入 promiscuous mode，这是流量统计的正常行为。
 
-- Manuals
-  - Controlling GPIO and LEDs via sysfs
-  - How to use NAND RWFS partition
-  - How to use IPv6 NAT and fullcone NAT
-  - How to add new device support with device tree
+常用检查命令：
+
+```sh
+ps | grep '[b]andwidthd'
+ls -lah /tmp/Bandwidthd_html
+wget -qO- http://127.0.0.1/bandwidthd/lljk.html | head
+```
+
+### dnsmasq 自定义配置注意事项
+
+新版 `dnsmasq` 会更严格校验配置。旧配置中的以下内容会导致启动失败：
+
+```conf
+min-ttl=0
+```
+
+如果日志出现类似错误：
+
+```text
+dnsmasq: bad option at line ... of /etc/storage/dnsmasq/dnsmasq.conf
+```
+
+请检查并注释无效配置：
+
+```sh
+cat /etc/storage/dnsmasq/dnsmasq.conf
+sed -i 's/^min-ttl=0/# min-ttl=0/' /etc/storage/dnsmasq/dnsmasq.conf
+killall dnsmasq 2>/dev/null
+/usr/sbin/dnsmasq
+mtd_storage.sh save
+```
+
+### 编译方法
+
+本仓库主要通过 GitHub Actions 编译。推送到分支后，CI 会编译 K2P 并上传 `.7z` Artifact。
+
+本地编译仍可使用上游方式：
+
+```sh
+git clone https://github.com/tookdes/padavan-4.4.git
+cd padavan-4.4/toolchain-mipsel
+./dl_toolchain.sh
+cd ../trunk
+fakeroot ./build_firmware_ci K2P
+```
+
+如需调整功能开关，请修改：
+
+```text
+trunk/configs/templates/K2P.config
+```
+
+### 运行状态验证
+
+刷机后可通过以下命令确认关键组件版本：
+
+```sh
+dnsmasq -v 2>&1 | head -n 3
+openssl version -a 2>&1 | head -n 5
+curl -V 2>&1 | head -n 3
+miniupnpd --version 2>&1 | head -n 5
+ls -l /lib/libssl.so* /lib/libcrypto.so* /lib/libz.so* 2>/dev/null
+```
+
+### 已知建议
+
+- 如果不使用 UPnP，建议在 Web UI 中关闭 UPnP。新版 `miniupnpd` 已更新，但 UPnP 本身仍是暴露面较大的组件。
+- 如果不使用无线，可在 Web UI 中关闭无线，减少启动日志噪音和运行负载。
+- 不建议在启动脚本里长期保留 `sync && echo 3 > /proc/sys/vm/drop_caches`，通常没有实际收益。
+
+## English
+
+This is a Phicomm K2P focused Padavan 4.4 custom branch based on `meisreallyba/padavan-4.4`. The goal is not to provide universal firmware for every supported board, but to keep K2P builds reproducible, small enough for 16 MB flash, and updated for important network-facing components.
+
+### What changed
+
+- GitHub Actions builds `K2P` only.
+- Keeps the Linux 4.4.198 / MT7621 / MT7615 5.0.4.0 base.
+- Updates security-sensitive networking components: `dnsmasq 2.92rel2`, `OpenSSL 3.0.20`, `curl 8.20.0`, `zlib 1.3.2`, and `miniupnpd 2.3.10`.
+- Disables large proxy/tunnel packages by default to keep the image under the K2P flash limit: NaiveProxy, Shadowsocks, ZeroTier, AdGuardHome, V2Ray, Trojan, and related packages are not built by default.
+- Adds default MSS clamping rules to reduce MTU/MSS issues on PPPoE and IPv6 paths.
+- Raises the default IPv6 RA/DHCPv6 lifetime to 86400 seconds to avoid SLAAC address loss on Windows dual-NIC setups.
+- Integrates `bandwidthd` traffic reports with automatic startup and Web access through the main Padavan httpd.
+- Uploads CI artifacts through GitHub Actions. WeTransfer upload is non-blocking and only attempted for release builds.
+
+### Bandwidthd usage
+
+After flashing this firmware, `bandwidthd` starts automatically and monitors `br0`. Runtime reports are generated under `/tmp/Bandwidthd_html`, and the main Web server maps `/bandwidthd/*` to that directory.
+
+Open:
+
+```text
+http://192.168.1.1/bandwidthd/lljk.html
+```
+
+Pages:
+
+- `lljk.html`: daily traffic.
+- `lljk2.html`: weekly traffic.
+- `lljk3.html`: monthly traffic.
+- `lljk4.html`: yearly traffic.
+
+Notes:
+
+- Do not use `/bandwidthd/`; Padavan httpd rejects directory URLs ending with `/`. Open a concrete `.html` file instead.
+- Wait a few seconds after boot before refreshing the page because files are generated by the daemon at runtime.
+- The default config monitors `192.168.1.0/24` on `br0`. If your LAN subnet is different, adjust the source default config before building.
+- `bandwidthd` puts `br0` into promiscuous mode. This is expected for traffic accounting.
+
+Useful checks:
+
+```sh
+ps | grep '[b]andwidthd'
+ls -lah /tmp/Bandwidthd_html
+wget -qO- http://127.0.0.1/bandwidthd/lljk.html | head
+```
+
+### dnsmasq custom config note
+
+Newer `dnsmasq` validates options more strictly. Old custom config such as this can prevent dnsmasq from starting:
+
+```conf
+min-ttl=0
+```
+
+If you see this in logs:
+
+```text
+dnsmasq: bad option at line ... of /etc/storage/dnsmasq/dnsmasq.conf
+```
+
+Inspect and comment the invalid option:
+
+```sh
+cat /etc/storage/dnsmasq/dnsmasq.conf
+sed -i 's/^min-ttl=0/# min-ttl=0/' /etc/storage/dnsmasq/dnsmasq.conf
+killall dnsmasq 2>/dev/null
+/usr/sbin/dnsmasq
+mtd_storage.sh save
+```
+
+### Build
+
+The recommended build path is GitHub Actions. Pushing to the branch builds K2P and uploads a `.7z` artifact.
+
+Local build still follows the upstream workflow:
+
+```sh
+git clone https://github.com/tookdes/padavan-4.4.git
+cd padavan-4.4/toolchain-mipsel
+./dl_toolchain.sh
+cd ../trunk
+fakeroot ./build_firmware_ci K2P
+```
+
+Feature switches live in:
+
+```text
+trunk/configs/templates/K2P.config
+```
+
+### Runtime verification
+
+After flashing, check component versions with:
+
+```sh
+dnsmasq -v 2>&1 | head -n 3
+openssl version -a 2>&1 | head -n 5
+curl -V 2>&1 | head -n 3
+miniupnpd --version 2>&1 | head -n 5
+ls -l /lib/libssl.so* /lib/libcrypto.so* /lib/libz.so* 2>/dev/null
+```
+
+### Recommendations
+
+- Disable UPnP in the Web UI if you do not use it.
+- Disable Wi-Fi in the Web UI if this K2P is used as a wired-only router.
+- Avoid keeping `sync && echo 3 > /proc/sys/vm/drop_caches` in startup scripts; it usually provides no benefit.
+
+## Upstream base
+
+Original base: <https://github.com/meisreallyba/padavan-4.4>

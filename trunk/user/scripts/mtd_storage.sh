@@ -307,7 +307,13 @@ EOF
 ### Custom user script
 ### Called after internal iptables reconfig (firewall update)
 
-#wing resume
+# SideStore support: redirect 10.7.0.1 to each requesting device
+# Modify the IP below to match your iOS device(s)
+# iptables -t nat -A PREROUTING -s 192.168.1.21 -d 10.7.0.1 -j DNAT --to-destination 192.168.1.21
+# iptables -t nat -A POSTROUTING -s 192.168.1.21 -d 192.168.1.21 -j SNAT --to-source 10.7.0.1
+
+# IPv6 MSS clamping for PMTU issues
+ip6tables -t mangle -I FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1432
 
 EOF
 		chmod 755 "$script_postf"

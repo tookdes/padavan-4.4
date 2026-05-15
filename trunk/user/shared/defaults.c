@@ -446,7 +446,7 @@ struct nvram_pair router_defaults[] = {
 	{ "ip6_lan_size", "64" },
 	{ "ip6_lan_radv", "1" },
 	{ "ip6_lan_dhcp", "1" },
-	{ "ip6_lan_sflt", "1800" },
+	{ "ip6_lan_sflt", "86400" },
 	{ "ip6_lan_sfps", "4096" }, // 0x1000
 	{ "ip6_lan_sfpe", "4352" }, // 0x1100
 
