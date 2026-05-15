@@ -23,6 +23,8 @@ download_test:
 extract_test:
 	( if [ ! -d $(SRC_NAME) ]; then \
 		tar zxf $(SRC_NAME).tar.gz; \
+		sed -i '/#define ENABLE_EVENTS/d' $(SRC_NAME)/configure; \
+		sed -i 's/ upnpevents\.o//' $(SRC_NAME)/objects.mk; \
 	fi )
 
 config_test:
