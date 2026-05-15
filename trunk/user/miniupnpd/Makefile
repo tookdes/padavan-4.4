@@ -34,6 +34,8 @@ config_test:
 			--firewall=iptables \
 			--iptablespath=$(IPTABLESPATH) \
 			$(IPV6_CONFIG_OPT) ; \
+		echo 'CPPFLAGS += -I$(IPTABLESPATH)/include' >> config.mk; \
+		echo 'LDLIBS += $(IPTABLESPATH)/libiptc/.libs/libip4tc.a' >> config.mk; \
 	)
 
 clean:
