@@ -593,6 +593,11 @@ void stop_wireguard(void);
 void start_wireguard(void);
 void restart_wireguard(void);
 #endif
+#if defined(APP_KUMASOCKS)
+void stop_kumasocks(void);
+void start_kumasocks(void);
+void restart_kumasocks(void);
+#endif
 #if defined(APP_SMARTDNS)
 void stop_smartdns(void);
 void start_smartdns(void);

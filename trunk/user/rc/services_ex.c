@@ -125,7 +125,80 @@ fill_static_ethers(const char *lan_ip, const char *lan_mask)
 		i_max_items = nvram_get_int("dhcp_staticnum_x");
 		if (i_max_items > DHCPD_STATIC_MAX)
 			i_max_items = DHCPD_STATIC_MAX;
-		
+
+		/* Auto-sort static DHCP list by IP address before generating configs */
+		if (i_max_items > 1) {
+			struct dhcp_sort_item {
+				in_addr_t ip4;
+				char mac[13];
+				char ip[16];
+				char name[64];
+			};
+			struct dhcp_sort_item dhcp_items[DHCPD_STATIC_MAX];
+			int k, changed = 0;
+
+			memset(dhcp_items, 0, sizeof(dhcp_items));
+
+			for (j = 0; j < i_max_items; j++) {
+				snprintf(nvram_key, sizeof(nvram_key), "dhcp_staticmac_x%d", j);
+				smac = nvram_safe_get(nvram_key);
+				if (smac)
+					strncpy(dhcp_items[j].mac, smac, 12);
+				dhcp_items[j].mac[12] = '\0';
+
+				snprintf(nvram_key, sizeof(nvram_key), "dhcp_staticip_x%d", j);
+				sip4 = nvram_safe_get(nvram_key);
+				if (sip4) {
+					strncpy(dhcp_items[j].ip, sip4, 15);
+					dhcp_items[j].ip[15] = '\0';
+				}
+				dhcp_items[j].ip4 = inet_addr_safe(sip4);
+
+				snprintf(nvram_key, sizeof(nvram_key), "dhcp_staticname_x%d", j);
+				shname = nvram_safe_get(nvram_key);
+				if (shname) {
+					strncpy(dhcp_items[j].name, shname, 63);
+					dhcp_items[j].name[63] = '\0';
+				}
+			}
+
+			/* Bubble sort by IP address */
+			for (j = 0; j < i_max_items - 1; j++) {
+				for (k = 0; k < i_max_items - 1 - j; k++) {
+					if (ntohl(dhcp_items[k].ip4) > ntohl(dhcp_items[k+1].ip4)) {
+						struct dhcp_sort_item tmp;
+						memcpy(&tmp, &dhcp_items[k], sizeof(tmp));
+						memcpy(&dhcp_items[k], &dhcp_items[k+1], sizeof(dhcp_items[k]));
+						memcpy(&dhcp_items[k+1], &tmp, sizeof(dhcp_items[k+1]));
+					}
+				}
+			}
+
+			/* Check if order changed */
+			for (j = 0; j < i_max_items; j++) {
+				snprintf(nvram_key, sizeof(nvram_key), "dhcp_staticip_x%d", j);
+				if (strcmp(nvram_safe_get(nvram_key), dhcp_items[j].ip) != 0) {
+					changed = 1;
+					break;
+				}
+			}
+
+			if (changed) {
+				for (j = 0; j < i_max_items; j++) {
+					snprintf(nvram_key, sizeof(nvram_key), "dhcp_staticmac_x%d", j);
+					nvram_set(nvram_key, dhcp_items[j].mac);
+
+					snprintf(nvram_key, sizeof(nvram_key), "dhcp_staticip_x%d", j);
+					nvram_set(nvram_key, dhcp_items[j].ip);
+
+					snprintf(nvram_key, sizeof(nvram_key), "dhcp_staticname_x%d", j);
+					nvram_set(nvram_key, dhcp_items[j].name);
+				}
+				nvram_commit();
+			}
+		}
+		/* End auto-sort */
+
 		/* first pass */
 		for (j = 0; j < i_max_items; j++) {
 			snprintf(nvram_key, sizeof(nvram_key), "dhcp_staticmac_x%d", j);
@@ -1174,4 +1247,3 @@ manual_ddns_hostname_check(void)
 {
 	nvram_set_temp("ddns_return_code", "inadyn_unsupport");
 }
-

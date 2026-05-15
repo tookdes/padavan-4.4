@@ -805,6 +805,14 @@ struct nvram_pair router_defaults[] = {
 	{ "wireguard_peerkey", "" },
 #endif
 
+#if defined(APP_KUMASOCKS)
+	/*KumaSocks*/
+	{ "kumasocks_enable", "0" },
+	{ "kumasocks_socks5_addr", "" },
+	{ "kumasocks_listen_port", "1234" },
+	{ "kumasocks_lan_only", "1" },
+#endif
+
 #if defined(APP_SQM)
 	/*SQM QoS*/
 	{ "sqm_enable", "0" },

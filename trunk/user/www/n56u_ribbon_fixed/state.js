@@ -383,8 +383,8 @@ function show_banner(L3){
 	show_top_status();
 }
 
-var tabtitle = new Array(20);
-var tablink = new Array(20);
+var tabtitle = new Array(21);
+var tablink = new Array(21);
 tabtitle[0] = new Array("", "<#menu5_1_1#>", "<#menu5_1_2#>", "<#menu5_1_3#>", "<#menu5_1_4#>", "<#menu5_1_5#>", "<#menu5_1_6#>");
 tabtitle[1] = new Array("", "<#menu5_1_1#>", "<#menu5_1_2#>", "<#menu5_1_3#>", "<#menu5_1_4#>", "<#menu5_1_5#>", "<#menu5_1_6#>");
 tabtitle[2] = new Array("", "<#menu5_2_1#>", "<#menu5_2_2#>", "<#menu5_2_3#>", "<#menu5_2_4#>", "<#menu5_2_5#>", "<#menu5_2_6#>");
@@ -493,6 +493,11 @@ if (found_app_frp()){
 	tabtitle[9].push('<#menu5_25_1#>');
 	tablink[9].push('Advanced_frp_log.asp');
 }
+if (found_app_kumasocks()){
+	kumasocks_array = new Array("","Advanced_kumasocks.asp");
+	tabtitle[20] = new Array("", "<#menu5_38#>");
+	tablink[20] = (kumasocks_array);
+}
 
 //Level 2 Menu
 menuL2_title = new Array(20)
@@ -535,6 +540,10 @@ if (found_app_sqm()){
 
 if (found_app_frp()){
 	menuL2_title.push("<#menu5_25#>");
+} else menuL2_title.push("");
+
+if (found_app_kumasocks()){
+	menuL2_title.push("<#menu5_38#>");
 } else menuL2_title.push("");
 
 menuL2_link  = new Array("", tablink[0][1], tablink[1][1], tablink[2][1], tablink[3][1], tablink[4][1], tablink[5][1], tablink[6][1], tablink[7][1], support_2g_radio() ? tablink[8][1] : "Main_EStatus_Content.asp", tablink[9][1]);
@@ -584,6 +593,10 @@ if (found_app_sqm()){
 
 if (found_app_frp()){
 	menuL2_link.push(frp_array[1]);
+} else menuL2_link.push("");
+
+if (found_app_kumasocks()){
+	menuL2_link.push(kumasocks_array[1]);
 } else menuL2_link.push("");
 
 //Level 1 Menu in Gateway, Router mode

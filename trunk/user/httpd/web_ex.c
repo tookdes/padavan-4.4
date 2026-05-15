@@ -249,6 +249,10 @@ sys_script(char *name)
 	{
 		notify_rc("manual_ddns_hostname_check");
 	}
+	else if (strcmp(name,"restart_kumasocks") == 0)
+	{
+		notify_rc(RCN_RESTART_KUMASOCKS);
+	}
 	else if (strcmp(name,"dlna_rescan") == 0)
 	{
 		notify_rc("restart_dms_rescan");
@@ -2581,6 +2585,11 @@ ej_firmware_caps_hook(int eid, webs_t wp, int argc, char **argv)
 #else
 	int found_app_frp = 0;
 #endif
+#if defined(APP_KUMASOCKS)
+	int found_app_kumasocks = 1;
+#else
+	int found_app_kumasocks = 0;
+#endif
 #if defined(APP_VPNSVR)
 	int found_app_vpnsvr = 1;
 #else
@@ -2758,6 +2767,7 @@ ej_firmware_caps_hook(int eid, webs_t wp, int argc, char **argv)
 		"function found_app_aldriver() { return %d;}\n"
 		"function found_app_aliddns() { return %d;}\n"
 		"function found_app_frp() { return %d;}\n"
+		"function found_app_kumasocks() { return %d;}\n"
 		"function found_app_vpnsvr() { return %d;}\n"
 		"function found_app_vpncli() { return %d;}\n"
 		"function found_app_smartdns() { return %d;}\n"
@@ -2791,6 +2801,7 @@ ej_firmware_caps_hook(int eid, webs_t wp, int argc, char **argv)
 		found_app_aldriver,
 		found_app_aliddns,
 		found_app_frp,
+		found_app_kumasocks,
 		found_app_vpnsvr,
 		found_app_vpncli,
 		found_app_smartdns,
@@ -4558,4 +4569,3 @@ struct ej_handler ej_handlers[] =
 	{ "openvpn_cli_cert_hook", openvpn_cli_cert_hook},
 	{ NULL, NULL }
 };
-

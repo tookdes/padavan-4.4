@@ -505,6 +505,23 @@ void restart_wireguard(void){
 }
 #endif
 
+#if defined(APP_KUMASOCKS)
+void stop_kumasocks(void){
+	eval("/usr/bin/kumasocks.sh","stop");
+}
+
+void start_kumasocks(void){
+	int kumasocks_enable = nvram_get_int("kumasocks_enable");
+	if ( kumasocks_enable == 1)
+		eval("/usr/bin/kumasocks.sh","start");
+}
+
+void restart_kumasocks(void){
+	stop_kumasocks();
+	start_kumasocks();
+}
+#endif
+
 #if defined(APP_ADBYBY)
 void stop_adbyby(void){
 	eval("/usr/bin/adbyby.sh","stop");
@@ -854,6 +871,9 @@ stop_services(int stopall)
 #endif
 #if defined(APP_WIREGUARD)
 	stop_wireguard();
+#endif
+#if defined(APP_KUMASOCKS)
+	stop_kumasocks();
 #endif
 #if defined(APP_SMARTDNS)
 	stop_smartdns();
