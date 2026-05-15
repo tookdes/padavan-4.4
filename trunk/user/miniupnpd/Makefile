@@ -36,6 +36,7 @@ config_test:
 			--iptablespath=$(IPTABLESPATH) \
 			$(IPV6_CONFIG_OPT) ; \
 		echo 'CPPFLAGS += -I$(IPTABLESPATH)/include' >> config.mk; \
+		sed -i 's/ -luuid//g; s| -I/usr/include/uuid||g' config.mk; \
 		echo 'LDLIBS += $(IPTABLESPATH)/libiptc/.libs/libip4tc.a' >> config.mk; \
 	)
 
