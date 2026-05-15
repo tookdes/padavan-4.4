@@ -57,10 +57,12 @@ jobs:
           name: ${{ env.image_name }}
           path: ${{ env.images_dir }}/*.7z
       - name: Upload firmware to WeTransfer
+        if: ${{ github.event_name == 'release' && success() }}
+        continue-on-error: true
         run: |
           curl -fsSL git.io/file-transfer | sh
           ./transfer wet -s -p 16 --no-progress /opt/images/*.trx 2>&1 | tee wetransfer.log
-          echo "::warning file=wetransfer.com::$(cat wetransfer.log | grep https)"
+          echo "::warning file=wetransfer.com::$(cat wetransfer.log | grep https || true)"
       - name: Upload images to Releases
         if: ${{ github.event_name == 'release' && success() }}
         uses: svenstaro/upload-release-action@2.2.0
