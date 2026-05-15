@@ -24,6 +24,7 @@ extract_test:
 	( if [ ! -d $(SRC_NAME) ]; then \
 		tar zxf $(SRC_NAME).tar.gz; \
 		sed -i '/#define ENABLE_EVENTS/d' $(SRC_NAME)/configure; \
+		sed -i '/#define USE_IPTABLES/a\echo "#define IPTABLES_143" >> $${CONFIGFILE}' $(SRC_NAME)/configure; \
 		sed -i 's/ upnpevents\.o//' $(SRC_NAME)/objects.mk; \
 	fi )
 
@@ -34,7 +35,7 @@ config_test:
 			--firewall=iptables \
 			--iptablespath=$(IPTABLESPATH) \
 			$(IPV6_CONFIG_OPT) ; \
-		echo 'CPPFLAGS += -DIPTABLES_143 -I$(IPTABLESPATH)/include' >> config.mk; \
+		echo 'CPPFLAGS += -I$(IPTABLESPATH)/include' >> config.mk; \
 		echo 'LDLIBS += $(IPTABLESPATH)/libiptc/.libs/libip4tc.a' >> config.mk; \
 	)
 
