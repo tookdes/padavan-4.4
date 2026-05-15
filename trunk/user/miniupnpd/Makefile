@@ -37,7 +37,7 @@ config_test:
 			$(IPV6_CONFIG_OPT) ; \
 		echo 'CPPFLAGS += -I$(IPTABLESPATH)/include' >> config.mk; \
 		sed -i 's/ -luuid//g; s| -I/usr/include/uuid||g' config.mk; \
-		sed -i 's/ -fPIE//g; s/ -pie//g; s/ -Wl,-z,now//g; s/ -Wl,-z,relro//g' Makefile.linux; \
+		sed -i 's/ -fPIE//g; s/ -fstack-protector//g; s/ -pie//g; s/ -Wl,-z,now//g; s/ -Wl,-z,relro//g' Makefile.linux; \
 		echo 'LDLIBS += $(IPTABLESPATH)/libiptc/.libs/libip4tc.a' >> config.mk; \
 	)
 
