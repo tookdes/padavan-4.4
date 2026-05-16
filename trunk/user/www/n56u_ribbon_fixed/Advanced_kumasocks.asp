@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
 <title><#Web_Title#> - KumaSocks 透明代理</title>
@@ -141,8 +141,6 @@ function change_kumasocks_enable(mflag){
 							<div class="row-fluid">
 								<div id="tabMenu" class="submenuBlock"></div>
 								<div class="alert alert-info" style="margin: 10px;">KumaSocks 透明代理：局域网 TCP 流量通过 REDIRECT 转发到上游 SOCKS5 服务器。</div>
-									</ul>
-								</div>
 
 								<table width="100%" align="center" cellpadding="4" cellspacing="0" class="table">
 									<tr>

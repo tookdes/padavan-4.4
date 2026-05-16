@@ -6,37 +6,147 @@
 
 #include "bandwidthd.h"
 
+#define BANDWIDTHD_WEB_ROOT "/etc/storage/bandwidthd"
+
+static const char *period_desc(void)
+{
+	switch (config.tag) {
+	case '1': return "Daily";
+	case '2': return "Weekly";
+	case '3': return "Monthly";
+	case '4': return "Yearly";
+	default: return "Traffic";
+	}
+}
+
+static void build_period_path(char *buffer, size_t buffer_len)
+{
+	if (config.tag == '1')
+		snprintf(buffer, buffer_len, "%s/lljk.html", BANDWIDTHD_WEB_ROOT);
+	else
+		snprintf(buffer, buffer_len, "%s/lljk%c.html", BANDWIDTHD_WEB_ROOT, config.tag);
+}
+
 void GraphIp(struct IPDataStore *DataStore, struct SummaryData *SummaryData, time_t timestamp)
 {
-	(void)DataStore;
-	(void)SummaryData;
+	struct DataStoreBlock *CurrentBlock;
+	struct IPData *Data;
+	int Counter;
+
 	(void)timestamp;
+
+	memset(SummaryData, 0, sizeof(struct SummaryData));
+	SummaryData->IP = DataStore->ip;
+
+	CurrentBlock = DataStore->FirstBlock;
+	while (CurrentBlock) {
+		Data = CurrentBlock->Data;
+		for (Counter = 0; Counter < CurrentBlock->NumEntries; Counter++) {
+			SummaryData->TotalSent += Data[Counter].Send.total;
+			SummaryData->TotalReceived += Data[Counter].Receive.total;
+			SummaryData->Total += Data[Counter].Send.total + Data[Counter].Receive.total;
+			SummaryData->TCP += Data[Counter].Send.tcp + Data[Counter].Receive.tcp;
+			SummaryData->UDP += Data[Counter].Send.udp + Data[Counter].Receive.udp;
+			SummaryData->ICMP += Data[Counter].Send.icmp + Data[Counter].Receive.icmp;
+			SummaryData->FTP += Data[Counter].Send.ftp + Data[Counter].Receive.ftp;
+			SummaryData->HTTP += Data[Counter].Send.http + Data[Counter].Receive.http;
+			SummaryData->P2P += Data[Counter].Send.p2p + Data[Counter].Receive.p2p;
+		}
+		CurrentBlock = CurrentBlock->Next;
+	}
+
+	SummaryData->Graph = (SummaryData->IP == 0 || SummaryData->Total >= config.graph_cutoff) ? TRUE : FALSE;
+}
+
+static void FormatNumber(unsigned long long n, char *buf, int len)
+{
+	if (n < 1024)
+		snprintf(buf, len, "%llu B", n);
+	else if (n < 1024 * 1024)
+		snprintf(buf, len, "%.1f K", (double)n / 1024.0);
+	else if (n < 1024ULL * 1024 * 1024)
+		snprintf(buf, len, "%.1f M", (double)n / (1024.0 * 1024));
+	else
+		snprintf(buf, len, "%.1f G", (double)n / (1024.0 * 1024 * 1024));
 }
 
 void MakeIndexPages(int NumIps, struct SummaryData *SummaryData[])
 {
-	FILE *index;
-	char filename[50];
+	FILE *file;
+	char filename[128];
+	int Counter, i, j;
+	char Buffer1[50];
+	const char *PeriodDesc = period_desc();
 
-	(void)NumIps;
-	(void)SummaryData;
+	for (i = 0; i < NumIps - 1; i++) {
+		for (j = 0; j < NumIps - 1 - i; j++) {
+			if (SummaryData[j]->Total < SummaryData[j + 1]->Total) {
+				struct SummaryData *tmp = SummaryData[j];
+				SummaryData[j] = SummaryData[j + 1];
+				SummaryData[j + 1] = tmp;
+			}
+		}
+	}
 
-	sprintf(filename, "/tmp/Bandwidthd_html/htdocs/index.html");
-	index = fopen(filename, "wt");
-	if (!index)
+	build_period_path(filename, sizeof(filename));
+	file = fopen(filename, "wt");
+	if (!file) {
+		syslog(LOG_ERR, "Unable to open %s for writing", filename);
 		return;
+	}
 
-	fprintf(index, "<!DOCTYPE html>\n");
-	fprintf(index, "<html>\n");
-	fprintf(index, "<head>\n");
-	fprintf(index, "<title>Bandwidthd</title>\n");
-	fprintf(index, "</head>\n");
-	fprintf(index, "<body>\n");
-	fprintf(index, "<h1>Bandwidthd - Graphing disabled (NOGRAPH)</h1>\n");
-	fprintf(index, "<p>Traffic data is being collected but graphs are not available without libgd/libpng.</p>\n");
-	fprintf(index, "</body>\n");
-	fprintf(index, "</html>\n");
-	fclose(index);
+	fprintf(file, "<!DOCTYPE html>\n<html><head><title>Bandwidthd</title>\n");
+	fprintf(file, "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">\n");
+	if (config.meta_refresh)
+		fprintf(file, "<meta http-equiv=\"refresh\" content=\"%u\">\n", config.meta_refresh);
+	fprintf(file, "<meta http-equiv=\"expires\" content=\"-1\">\n");
+	fprintf(file, "<meta http-equiv=\"pragma\" content=\"no-cache\">\n");
+	fprintf(file, "</head><body>\n");
+	fprintf(file, "<center><h1>Bandwidthd - %s Traffic</h1></center>\n", PeriodDesc);
+	fprintf(file, "<center><p>Graph images are disabled in this firmware build; traffic is shown as a persistent table.</p></center>\n");
+	fprintf(file, "<center><table width=\"100%%\" border=1 cellspacing=0>\n");
+	fprintf(file, "<tr bgcolor=lightblue><td align=center>IP Address</td>"
+		"<td align=center>Total</td><td align=center>Sent</td><td align=center>Received</td>"
+		"<td align=center>FTP</td><td align=center>HTTP</td><td align=center>P2P</td>"
+		"<td align=center>TCP</td><td align=center>UDP</td><td align=center>ICMP</td></tr>\n");
+
+	for (Counter = 0; Counter < NumIps; Counter++) {
+		struct SummaryData *Data = SummaryData[Counter];
+		char total[32], sent[32], recv[32], ftp[32], http[32], p2p[32], tcp[32], udp[32], icmp[32];
+
+		if (!Data->Graph)
+			continue;
+
+		if (Data->IP == 0)
+			strcpy(Buffer1, "Total");
+		else
+			HostIp2CharIp(Data->IP, Buffer1);
+
+		FormatNumber(Data->Total, total, sizeof(total));
+		FormatNumber(Data->TotalSent, sent, sizeof(sent));
+		FormatNumber(Data->TotalReceived, recv, sizeof(recv));
+		FormatNumber(Data->FTP, ftp, sizeof(ftp));
+		FormatNumber(Data->HTTP, http, sizeof(http));
+		FormatNumber(Data->P2P, p2p, sizeof(p2p));
+		FormatNumber(Data->TCP, tcp, sizeof(tcp));
+		FormatNumber(Data->UDP, udp, sizeof(udp));
+		FormatNumber(Data->ICMP, icmp, sizeof(icmp));
+
+		fprintf(file, (Counter % 2 == 0) ? "<tr>" : "<tr bgcolor=lightblue>");
+		fprintf(file, "<td align=center>%s</td>", Buffer1);
+		fprintf(file, "<td align=center>%s</td>", total);
+		fprintf(file, "<td align=center>%s</td>", sent);
+		fprintf(file, "<td align=center>%s</td>", recv);
+		fprintf(file, "<td align=center>%s</td>", ftp);
+		fprintf(file, "<td align=center>%s</td>", http);
+		fprintf(file, "<td align=center>%s</td>", p2p);
+		fprintf(file, "<td align=center>%s</td>", tcp);
+		fprintf(file, "<td align=center>%s</td>", udp);
+		fprintf(file, "<td align=center>%s</td></tr>\n", icmp);
+	}
+
+	fprintf(file, "</table></center>\n</body></html>\n");
+	fclose(file);
 }
 
 #else
@@ -245,7 +355,7 @@ void MakeIndexPages(int NumIps, struct SummaryData *SummaryData[])
 	int SubnetCounter;
 	int Counter, tCounter;
 	time_t WriteTime;
-	char filename[] = "/tmp/Bandwidthd_html/lljk2.html";
+	char filename[] = "/etc/storage/bandwidthd/lljk2.html";
 	char *PeriodDesc;
 	
 	FILE *file;
@@ -272,7 +382,7 @@ void MakeIndexPages(int NumIps, struct SummaryData *SummaryData[])
 		}
 	else
 		{
-		filename[25] = config.tag;
+		filename[28] = config.tag;
 		if ((file = fopen(filename, "wt")) == NULL)
 			{
 			syslog(LOG_ERR, "打开 %s 失败", filename);

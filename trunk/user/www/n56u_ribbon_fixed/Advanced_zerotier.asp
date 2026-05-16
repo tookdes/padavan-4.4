@@ -204,9 +204,6 @@ function showMRULESList(){
 							<div class="round_bottom">
 							<div>
                             <ul class="nav nav-tabs" style="margin-bottom: 10px;">
-								<li id="allink" style="display:none">
-                                    <a href="Advanced_aliddns.asp"><#menu5_23_1#></a>
-                                </li>
 								<li class="active">
                                     <a href="Advanced_zerotier.asp"><#menu5_32_1#></a>
                                 </li>
@@ -370,4 +367,3 @@ function showMRULESList(){
 </div>
 </body>
 </html>
-

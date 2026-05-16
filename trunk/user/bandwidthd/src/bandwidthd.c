@@ -1,4 +1,4 @@
-#include "bandwidthd.h"
+﻿#include "bandwidthd.h"
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -16,7 +16,8 @@
 #define _exit(x) exit(x)
 #endif
 
-#define WEB_ROOT "/tmp/Bandwidthd_html"
+#define WEB_ROOT "/etc/storage/bandwidthd"
+#define CDF_ROOT WEB_ROOT "/htdocs"
 #define INDEX_PAGE "lljk.html"
 #define BUFFER_SIZE 8096
 #define MAX_CONCURRENT_CONNECTIONS 50
@@ -160,13 +161,15 @@ void signal_handler(int sig)
 void bd_CollectingData(char *filename)
 	{
 	FILE *index;
-	if (access("/tmp/Bandwidthd_html", F_OK) != 0)
-    	{
-        	if (mkdir("/tmp/Bandwidthd_html", 0755) != 0)
-        	{
-            	syslog(LOG_ERR, "创建目录 /tmp/Bandwidthd_html 失败，将无法生成html页面文件");
-        	}
-    	}
+	if (access(WEB_ROOT, F_OK) != 0)
+		{
+		if (mkdir(WEB_ROOT, 0755) != 0)
+			{
+			syslog(LOG_ERR, "创建目录 %s 失败，将无法生成html页面文件", WEB_ROOT);
+			}
+		}
+	if (access(CDF_ROOT, F_OK) != 0)
+		mkdir(CDF_ROOT, 0755);
     	// 如果文件已存在并且不为空，则直接跳过创建
     	struct stat st;
     	if (stat(filename, &st) == 0 && st.st_size > 0)
@@ -798,10 +801,10 @@ int main(int argc, char **argv)
 
 	if (config.graph)
 		{
-		bd_CollectingData("/tmp/Bandwidthd_html/lljk.html");
-		bd_CollectingData("/tmp/Bandwidthd_html/lljk2.html");
-		bd_CollectingData("/tmp/Bandwidthd_html/lljk3.html");
-		bd_CollectingData("/tmp/Bandwidthd_html/lljk4.html");
+		bd_CollectingData(WEB_ROOT "/lljk.html");
+		bd_CollectingData(WEB_ROOT "/lljk2.html");
+		bd_CollectingData(WEB_ROOT "/lljk3.html");
+		bd_CollectingData(WEB_ROOT "/lljk4.html");
 		start_http_server(ListenPort); // ListenPort 是通过 -P 参数设置的
 		}
 
@@ -818,11 +821,10 @@ int main(int argc, char **argv)
 		{
 		// 简单判断目录是否存在，如果不存在就创建
     		struct stat st;
-    		if (stat("/tmp/Bandwidthd_html/htdocs", &st) != 0) {
+		if (stat(CDF_ROOT, &st) != 0) {
         		// 尝试创建目录（及其父目录），忽略失败
-        		mkdir("/tmp", 0755);                          // 父目录
-        		mkdir("/tmp/Bandwidthd_html", 0755);          // 中间目录
-        		mkdir("/tmp/Bandwidthd_html/htdocs", 0755);   // 最终目录
+			mkdir(WEB_ROOT, 0755);
+			mkdir(CDF_ROOT, 0755);
     		}
 		/* fork processes for week, month and year graphing. */
 		for (i=0; i<NR_WORKER_CHILDS; i++) 
@@ -1546,9 +1548,9 @@ void StoreIPDataInCDF(struct IPData IncData[])
 	FILE *cdf;
 	struct Statistics *Stats;
 	char IPBuffer[50];
-	char logfile[] = "/tmp/Bandwidthd_html/htdocs/log.1.0.cdf";
-	
-	logfile[32] = config.tag;	
+	char logfile[128];
+
+	snprintf(logfile, sizeof(logfile), CDF_ROOT "/log.%c.0.cdf", config.tag);
 
    	cdf = fopen(logfile, "at");
 
@@ -1689,8 +1691,8 @@ void CommitData(time_t timestamp)
 	static int MayGraph = TRUE;
     unsigned int counter;
 	struct stat StatBuf;
-	char logname1[] = "/tmp/Bandwidthd_html/htdocs/log.1.5.cdf";
-	char logname2[] = "/tmp/Bandwidthd_html/htdocs/log.1.4.cdf";
+	char logname1[128];
+	char logname2[128];
 	
 	// Set the timestamps
 	for (counter=0; counter < IpCount; counter++)
@@ -1740,31 +1742,20 @@ void CommitData(time_t timestamp)
 		
 		if (RotateLogs >= config.range/RANGE1) // We set this++ on HUP
 			{
-			logname1[32] = config.tag;
-			logname2[32] = config.tag;
-			logname2[34] = '5';
+			int log_index;
 
+			snprintf(logname2, sizeof(logname2), CDF_ROOT "/log.%c.5.cdf", config.tag);
 			if (!stat(logname2, &StatBuf)) // File exists
 				unlink(logname2);
-			logname1[34] = '4';
-			if (!stat(logname1, &StatBuf)) // File exists
-				rename(logname1, logname2);
-			logname1[34] = '3';
-			logname2[34] = '4';			
-			if (!stat(logname1, &StatBuf)) // File exists
-				rename(logname1, logname2);
-            logname1[34] = '2';
-            logname2[34] = '3';			
-			if (!stat(logname1, &StatBuf)) // File exists
-				rename(logname1, logname2);
-            logname1[34] = '1';
-            logname2[34] = '2';			
-			if (!stat(logname1, &StatBuf)) // File exists
-				rename(logname1, logname2);
-            logname1[34] = '0';
-            logname2[34] = '1';			
-			if (!stat(logname1, &StatBuf)) // File exists
-				rename(logname1, logname2); 
+
+			for (log_index = 4; log_index >= 0; log_index--) {
+				snprintf(logname1, sizeof(logname1), CDF_ROOT "/log.%c.%d.cdf", config.tag, log_index);
+				snprintf(logname2, sizeof(logname2), CDF_ROOT "/log.%c.%d.cdf", config.tag, log_index + 1);
+				if (!stat(logname1, &StatBuf)) // File exists
+					rename(logname1, logname2);
+			}
+
+			snprintf(logname1, sizeof(logname1), CDF_ROOT "/log.%c.0.cdf", config.tag);
 			fclose(fopen(logname1, "at")); // Touch file
 			RotateLogs = FALSE;
 			}
@@ -1906,17 +1897,13 @@ void RecoverDataFromCDF(void)
 	{
 	FILE *cdf;
 	char index[] = "012345";
-    char logname1[] = "/tmp/Bandwidthd_html/htdocs/log.1.0.cdf";
-    char logname2[] = "/tmp/Bandwidthd_html/htdocs/log.1.1.cdf";
+    char logname1[128];
 	int Counter;
 	int First = FALSE;
 
-	logname1[32] = config.tag;
-	logname2[32] = config.tag;
-
 	for (Counter = 5; Counter >= 0; Counter--)
 		{
-		logname1[34] = index[Counter];
+		snprintf(logname1, sizeof(logname1), CDF_ROOT "/log.%c.%c.cdf", config.tag, index[Counter]);
 		if (RCDF_Test(logname1))
 			break;
 		}
@@ -1924,7 +1911,7 @@ void RecoverDataFromCDF(void)
 	First = TRUE;
 	for (; Counter >= 0; Counter--)
 		{
-		logname1[34] = index[Counter];
+		snprintf(logname1, sizeof(logname1), CDF_ROOT "/log.%c.%c.cdf", config.tag, index[Counter]);
 		if ((cdf = fopen(logname1, "rt")))
 			{
 			syslog(LOG_INFO, "正在从 %s 恢复", logname1);
