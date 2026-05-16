@@ -4123,7 +4123,7 @@ do_bandwidthd_file(const char *url, FILE *stream)
 	if (*name == '\0')
 		name = "lljk.html";
 
-	snprintf(path, sizeof(path), "/tmp/Bandwidthd_html/%s", name);
+	snprintf(path, sizeof(path), "/etc/storage/bandwidthd/%s", name);
 	do_file(path, stream);
 }
 #endif

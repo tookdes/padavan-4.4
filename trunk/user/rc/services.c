@@ -30,6 +30,12 @@
 static void
 start_bandwidthd(void)
 {
+	if (access("/etc/storage/bandwidthd", F_OK) != 0)
+		mkdir("/etc/storage/bandwidthd", 0755);
+	if (access("/etc/storage/bandwidthd/htdocs", F_OK) != 0)
+		mkdir("/etc/storage/bandwidthd/htdocs", 0755);
+	if (access("/www/bandwidthd", F_OK) != 0)
+		symlink("/etc/storage/bandwidthd", "/www/bandwidthd");
 	if (!pids("bandwidthd"))
 		doSystem("%s %s %s", "/usr/bin/bandwidthd", "-c", "/etc_ro/bandwidthd.conf");
 }

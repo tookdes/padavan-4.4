@@ -1,7 +1,7 @@
 ﻿<!DOCTYPE html>
 <html>
 <head>
-<title><#Web_Title#> - KumaSocks 透明代理</title>
+<title><#Web_Title#> - KumaSocks</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="-1">
@@ -136,11 +136,11 @@ function change_kumasocks_enable(mflag){
 				<div class="row-fluid">
 					<div class="span12">
 						<div class="box well grad_colour_dark_blue">
-							<h2 class="box_head round_top"><#menu5_30#> - <#menu5_37#></h2>
+							<h2 class="box_head round_top"><#menu5_38#></h2>
 							<div class="round_bottom">
 							<div class="row-fluid">
 								<div id="tabMenu" class="submenuBlock"></div>
-								<div class="alert alert-info" style="margin: 10px;">KumaSocks 透明代理：局域网 TCP 流量通过 REDIRECT 转发到上游 SOCKS5 服务器。</div>
+								<div class="alert alert-info" style="margin: 10px;">KumaSocks：局域网 TCP 流量通过 REDIRECT 转发到上游 SOCKS5 服务器。</div>
 
 								<table width="100%" align="center" cellpadding="4" cellspacing="0" class="table">
 									<tr>
