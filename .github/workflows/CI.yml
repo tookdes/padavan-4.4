@@ -1,12 +1,12 @@
 name: CI
 
 # Controls when the action will run. 
-on: 
+on:
   push:
   pull_request:
   workflow_dispatch:
-  release:
-    types: [published]
+  # release:
+  #   types: [published]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -57,14 +57,14 @@ jobs:
           name: ${{ env.image_name }}
           path: ${{ env.images_dir }}/*.7z
       - name: Upload firmware to WeTransfer
-        if: ${{ github.event_name == 'release' && success() }}
+        if: ${{ false && github.event_name == 'release' && success() }}
         continue-on-error: true
         run: |
           curl -fsSL git.io/file-transfer | sh
           ./transfer wet -s -p 16 --no-progress /opt/images/*.trx 2>&1 | tee wetransfer.log
           echo "::warning file=wetransfer.com::$(cat wetransfer.log | grep https || true)"
       - name: Upload images to Releases
-        if: ${{ github.event_name == 'release' && success() }}
+        if: ${{ false && github.event_name == 'release' && success() }}
         uses: svenstaro/upload-release-action@2.2.0
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}

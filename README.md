@@ -2,22 +2,24 @@
 
 ## 中文说明
 
-这是一个面向 Phicomm K2P 的 Padavan 4.4 内核定制分支，基于 `meisreallyba/padavan-4.4` 继续维护。当前目标不是做全设备通用固件，而是优先保证 K2P 在 16 MB flash 内可用、核心网络组件较新、CI 可重复编译。
+这是一个面向 Phicomm K2P 的 Padavan 4.4 内核定制分支，基于 `meisreallyba/padavan-4.4` 继续维护。当前目标不是做全设备通用固件，而是优先保证 K2P 在 16 MB flash 内可用、核心网络组件较新的自用版本。
 
 ### 当前改动摘要
 
-- 仅在 GitHub Actions 中编译 `K2P`，不再构建其他设备。
+- 仅在 GitHub Actions 中编译 `K2P`，不再构建其他设备，如有需要可以自己 fork。
 - 保留 Linux 4.4.198 / MT7621 / MT7615 5.0.4.0 无线驱动基础。
 - 更新关键网络组件：`dnsmasq 2.92rel2`、`OpenSSL 3.0.20`、`curl 8.20.0`、`zlib 1.3.2`、`miniupnpd 2.3.10`。
-- 关闭不需要的大体积代理/隧道组件，避免固件超过 16 MB：NaiveProxy、Shadowsocks、ZeroTier、AdGuardHome、V2Ray、Trojan 等默认不编译。
+- 关闭不需要的大体积代理/隧道组件，避免固件超过 16 MB。
 - 增加默认 MSS clamp 规则，降低 PPPoE/IPv6 等环境下的 MTU/MSS 问题概率。
 - 调整 IPv6 RA/DHCPv6 默认 lifetime 到 86400 秒，避免 Windows 双网卡环境中 SLAAC 地址因短 lifetime 丢失。
-- 集成 `bandwidthd` 流量统计：固件内置二进制、默认配置、开机自启动，并通过主 Web 服务访问统计页面。
-- CI 产物上传到 GitHub Actions Artifact；WeTransfer 上传改为 release 场景下的非阻塞步骤，避免第三方 403 导致构建失败。
+- 集成 `bandwidthd` 流量统计：固件内置二进制、默认配置、开机自启动，并通过主 Web 服务访问统计页面。采用 `-DNOGRAPH` 编译（无 PNG 图像），仅输出 HTML 表格统计；数据持久化到 `/etc/storage/bandwidthd`，重启后不丢失。
+- 集成 `KumaSocks` 透明代理：局域网 TCP 流量通过 REDIRECT 转发到上游 SOCKS5 服务器，默认仅 LAN 设备走代理。
+- DHCP 静态列表按 IP 地址自动排序，避免手动添加后顺序混乱。
+- 删除阿里 DDNS（`Advanced_aliddns.asp`）和原生 DDNS（`Advanced_DDNS_Content.asp`）页面，减少维护面。
 
 ### Bandwidthd 使用方法
 
-刷入本分支固件后，`bandwidthd` 会自动启动并监听 `br0`。统计页面由 `bandwidthd` 写入 `/tmp/Bandwidthd_html`，主 Web 服务会把 `/bandwidthd/*` 映射到该目录。
+刷入本分支固件后，`bandwidthd` 会自动启动并监听 `br0`。统计页面由 `bandwidthd` 写入 `/etc/storage/bandwidthd`，主 Web 服务会把 `/bandwidthd/*` 映射到该目录。数据持久化在 `/etc/storage`，重启后不丢失。
 
 访问地址：
 
@@ -27,10 +29,10 @@ http://192.168.1.1/bandwidthd/lljk.html
 
 页面说明：
 
-- `lljk.html`：日流量统计。
-- `lljk2.html`：周流量统计。
-- `lljk3.html`：月流量统计。
-- `lljk4.html`：年流量统计。
+- `lljk.html`：日流量统计（HTML 表格）。
+- `lljk2.html`：周流量统计（HTML 表格）。
+- `lljk3.html`：月流量统计（HTML 表格）。
+- `lljk4.html`：年流量统计（HTML 表格）。
 
 注意事项：
 
@@ -38,12 +40,13 @@ http://192.168.1.1/bandwidthd/lljk.html
 - 首次启动后等待几秒再刷新页面，因为统计页面由 daemon 启动后生成。
 - 当前默认监控 `192.168.1.0/24` 和 `br0`。如果 LAN 网段不是 `192.168.1.0/24`，需要后续改 `/etc_ro/bandwidthd.conf` 的生成逻辑或在固件源码里调整默认配置。
 - `bandwidthd` 会让 `br0` 进入 promiscuous mode，这是流量统计的正常行为。
+- 本固件使用 `-DNOGRAPH` 编译，`bandwidthd` 不生成 PNG 图像，仅输出 HTML 表格统计。
 
 常用检查命令：
 
 ```sh
 ps | grep '[b]andwidthd'
-ls -lah /tmp/Bandwidthd_html
+ls -lah /etc/storage/bandwidthd
 wget -qO- http://127.0.0.1/bandwidthd/lljk.html | head
 ```
 
@@ -106,27 +109,29 @@ ls -l /lib/libssl.so* /lib/libcrypto.so* /lib/libz.so* 2>/dev/null
 ### 已知建议
 
 - 如果不使用 UPnP，建议在 Web UI 中关闭 UPnP。新版 `miniupnpd` 已更新，但 UPnP 本身仍是暴露面较大的组件。
-- 如果不使用无线，可在 Web UI 中关闭无线，减少启动日志噪音和运行负载。
 - 不建议在启动脚本里长期保留 `sync && echo 3 > /proc/sys/vm/drop_caches`，通常没有实际收益。
 
 ## English
 
-This is a Phicomm K2P focused Padavan 4.4 custom branch based on `meisreallyba/padavan-4.4`. The goal is not to provide universal firmware for every supported board, but to keep K2P builds reproducible, small enough for 16 MB flash, and updated for important network-facing components.
+This is a Phicomm K2P focused Padavan 4.4 custom branch based on `meisreallyba/padavan-4.4`. The goal is not to provide universal firmware for every supported board, but to keep K2P builds reproducible, small enough for 16 MB flash, and updated for important network-facing components as a personal-use build.
 
 ### What changed
 
-- GitHub Actions builds `K2P` only.
+- GitHub Actions builds `K2P` only; fork it if you need other boards.
 - Keeps the Linux 4.4.198 / MT7621 / MT7615 5.0.4.0 base.
 - Updates security-sensitive networking components: `dnsmasq 2.92rel2`, `OpenSSL 3.0.20`, `curl 8.20.0`, `zlib 1.3.2`, and `miniupnpd 2.3.10`.
-- Disables large proxy/tunnel packages by default to keep the image under the K2P flash limit: NaiveProxy, Shadowsocks, ZeroTier, AdGuardHome, V2Ray, Trojan, and related packages are not built by default.
+- Disables large proxy/tunnel packages by default to keep the image under the K2P flash limit.
 - Adds default MSS clamping rules to reduce MTU/MSS issues on PPPoE and IPv6 paths.
 - Raises the default IPv6 RA/DHCPv6 lifetime to 86400 seconds to avoid SLAAC address loss on Windows dual-NIC setups.
-- Integrates `bandwidthd` traffic reports with automatic startup and Web access through the main Padavan httpd.
+- Integrates `KumaSocks` transparent proxy: LAN TCP traffic is redirected to an upstream SOCKS5 server; LAN-only mode is recommended.
+- DHCP static lease list is auto-sorted by IP address.
+- Removes Ali DDNS (`Advanced_aliddns.asp`) and native DDNS (`Advanced_DDNS_Content.asp`) pages to reduce maintenance surface.
+- Integrates `bandwidthd` traffic reports with automatic startup and Web access. Built with `-DNOGRAPH` (no PNG images); only HTML tables are generated. Data is persisted under `/etc/storage/bandwidthd` and survives reboots.
 - Uploads CI artifacts through GitHub Actions. WeTransfer upload is non-blocking and only attempted for release builds.
 
 ### Bandwidthd usage
 
-After flashing this firmware, `bandwidthd` starts automatically and monitors `br0`. Runtime reports are generated under `/tmp/Bandwidthd_html`, and the main Web server maps `/bandwidthd/*` to that directory.
+After flashing this firmware, `bandwidthd` starts automatically and monitors `br0`. Runtime reports are written to `/etc/storage/bandwidthd`, and the main Web server maps `/bandwidthd/*` to that directory. Data persists across reboots.
 
 Open:
 
@@ -136,10 +141,10 @@ http://192.168.1.1/bandwidthd/lljk.html
 
 Pages:
 
-- `lljk.html`: daily traffic.
-- `lljk2.html`: weekly traffic.
-- `lljk3.html`: monthly traffic.
-- `lljk4.html`: yearly traffic.
+- `lljk.html`: daily traffic (HTML table).
+- `lljk2.html`: weekly traffic (HTML table).
+- `lljk3.html`: monthly traffic (HTML table).
+- `lljk4.html`: yearly traffic (HTML table).
 
 Notes:
 
@@ -147,12 +152,13 @@ Notes:
 - Wait a few seconds after boot before refreshing the page because files are generated by the daemon at runtime.
 - The default config monitors `192.168.1.0/24` on `br0`. If your LAN subnet is different, adjust the source default config before building.
 - `bandwidthd` puts `br0` into promiscuous mode. This is expected for traffic accounting.
+- This firmware builds `bandwidthd` with `-DNOGRAPH`; no PNG images are generated, only HTML tables.
 
 Useful checks:
 
 ```sh
 ps | grep '[b]andwidthd'
-ls -lah /tmp/Bandwidthd_html
+ls -lah /etc/storage/bandwidthd
 wget -qO- http://127.0.0.1/bandwidthd/lljk.html | head
 ```
 

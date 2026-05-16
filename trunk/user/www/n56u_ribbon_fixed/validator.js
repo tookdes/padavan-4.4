@@ -1068,7 +1068,7 @@ var validator = {
 					document.form.lan_netmask.value = "255.255.255.0";
 				}
 				else if(v == 'lan1_ipaddr'){
-					document.form.lan1_ipaddr.value = "192.168.2.1";
+					document.form.lan1_ipaddr.value = "192.168.1.1";
 					document.form.lan1_netmask.value = "255.255.255.0";
 				}
 				else if(v == 'lan_netmask')
@@ -1178,7 +1178,7 @@ var validator = {
 					document.form.lan_netmask.value = "255.255.255.0";
 				}
 				else if(v == 'lan1_ipaddr'){
-					document.form.lan1_ipaddr.value = "192.168.2.1";
+					document.form.lan1_ipaddr.value = "192.168.1.1";
 					document.form.lan1_netmask.value = "255.255.255.0";
 				}
 				
@@ -1215,7 +1215,7 @@ var validator = {
 				document.form.lan_netmask.value = "255.255.255.0";
 			}
 			else if(v=='lan1_netmask'){
-				document.form.lan1_ipaddr.value = "192.168.2.1";
+				document.form.lan1_ipaddr.value = "192.168.1.1";
 				document.form.lan1_netmask.value = "255.255.255.0";
 			}
 			
