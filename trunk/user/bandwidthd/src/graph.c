@@ -6,6 +6,8 @@
 
 #include "bandwidthd.h"
 
+extern struct config config;
+
 #define BANDWIDTHD_WEB_ROOT "/etc/storage/bandwidthd"
 
 static const char *period_desc(void)
