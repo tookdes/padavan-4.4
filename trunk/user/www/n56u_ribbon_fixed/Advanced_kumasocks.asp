@@ -34,7 +34,7 @@ $j(document).ready(function() {
 
 function initial(){
 	show_banner(2);
-	show_menu(5,17,0);
+	show_menu(5,21);
 	show_footer();
 	change_kumasocks_enable(1);
 }
@@ -140,12 +140,7 @@ function change_kumasocks_enable(mflag){
 							<div class="round_bottom">
 							<div class="row-fluid">
 								<div id="tabMenu" class="submenuBlock"></div>
-								<div class="alert alert-info" style="margin: 10px;">
-									KumaSocks 是一个轻量级透明代理工具，将局域网 TCP 流量通过 REDIRECT 方式转发到上游 SOCKS5 代理。
-									<ul style="padding-top:5px;margin-top:10px;float: left;">
-									<li>需先配置好上游 SOCKS5 服务器（如旁路由、VPS 等）</li>
-									<li>仅支持 TCP 流量的透明转发，UDP 不走代理</li>
-									<li>建议配合"仅 LAN"选项使用，避免代理路由器自身流量</li>
+								<div class="alert alert-info" style="margin: 10px;">KumaSocks 透明代理：局域网 TCP 流量通过 REDIRECT 转发到上游 SOCKS5 服务器。</div>
 									</ul>
 								</div>
 
