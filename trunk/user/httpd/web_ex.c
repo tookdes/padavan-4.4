@@ -848,7 +848,7 @@ validate_nvram_lan_subnet(void)
 	validate_nvram_lan_param("dhcp_end", lan_addr, lan_mask);
 
 	/* validate dhcp static IP */
-	i_max_items = nvram_safe_get_int("dhcp_staticnum_x", 0, 0, 64);
+	i_max_items = nvram_safe_get_int("dhcp_staticnum_x", 0, 0, 256);
 	for (i = 0; i < i_max_items; i++) {
 		snprintf(nvram_ip, sizeof(nvram_ip), "dhcp_staticip_x%d", i);
 		validate_nvram_lan_param(nvram_ip, lan_addr, lan_mask);

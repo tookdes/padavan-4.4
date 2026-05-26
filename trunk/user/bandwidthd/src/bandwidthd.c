@@ -1727,14 +1727,14 @@ void CommitData(time_t timestamp)
 		// 诊断日志:每次都记录  
     	//syslog(LOG_INFO, "CommitData (tag='%c'): 准备写入CDF, IpCount=%u, timestamp=%ld", config.tag, IpCount, timestamp);  
       
-    	// 检查磁盘空间  
-    	struct statvfs vfs;  
-    	if (statvfs("/tmp", &vfs) == 0) {  
-        	unsigned long long free_bytes = (unsigned long long)vfs.f_bavail * vfs.f_bsize;  
-        	if (free_bytes < 10 * 1024 * 1024) {  // 小于10MB  
-            		syslog(LOG_ERR, "警告: /tmp 分区空间不足, 剩余 %llu MB",   
-                   free_bytes / (1024 * 1024));  
-        	}  
+    	// 检查磁盘空间
+    	struct statvfs vfs;
+    	if (statvfs(CDF_ROOT, &vfs) == 0) {
+        	unsigned long long free_bytes = (unsigned long long)vfs.f_bavail * vfs.f_bsize;
+        	if (free_bytes < 512 * 1024) {  // 小于512KB
+            		syslog(LOG_ERR, "warning: storage space low at %s, %llu KB left",
+                   CDF_ROOT, free_bytes / 1024);
+        	}
     	}
 		// TODO: This needs to be moved into the forked section, but I don't want to 
 		//	deal with that right now (Heavy disk io may make us drop packets)

@@ -859,7 +859,7 @@ function showMDHCPList(){
 	    }
 		code += '<tr>';
 		code += '<td colspan="4">&nbsp;</td>'
-		code += '<td><button class="btn btn-danger" type="submit" onclick="markGroupMDHCP(this, 64, \' Del \');" name="pppoemwanIPList"><i class="icon icon-minus icon-white"></i></button></td>';
+		code += '<td><button class="btn btn-danger" type="submit" onclick="markGroupMDHCP(this, 256, \' Del \');" name="pppoemwanIPList"><i class="icon icon-minus icon-white"></i></button></td>';
 		code += '</tr>'
 	}
 	code +='</table>';
@@ -1210,7 +1210,7 @@ function simplyMAC(fullMAC){
                                                 <input type="text" maxlength="24" class="span12" size="20" name="pppoemwan_interface_x_0"   value="<% nvram_get_x("", "pppoemwan_interface_x_0"); %>" onKeyPress="return is_string(this,event);"/>
                                             </td>
                                             <td width="5%">
-                                                <button class="btn" style="max-width: 219px" type="submit" onclick="markGroupMDHCP(this, 64, ' Add ');" name="ManualDHCPList2" value="<#CTL_add#>" size="12"><i class="icon icon-plus"></i></button>
+                                                <button class="btn" style="max-width: 219px" type="submit" onclick="markGroupMDHCP(this, 256, ' Add ');" name="ManualDHCPList2" value="<#CTL_add#>" size="12"><i class="icon icon-plus"></i></button>
                                             </td>
                                         </tr>
                                         <tr id="row_static_body" style="display:none">

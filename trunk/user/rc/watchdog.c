@@ -477,11 +477,47 @@ dnsmasq_process_check(void)
 		dnsmasq_missing++;
 	else
 		dnsmasq_missing = 0;
-	
+
 	if (dnsmasq_missing > 1) {
 		dnsmasq_missing = 0;
 		logmessage("watchdog", "dnsmasq is missing, start again!");
-		start_dns_dhcpd(0);
+		start_dns_dhcpd(get_ap_mode());
+	}
+}
+
+/* Monitor system memory, drop page cache if critically low */
+static int memcheck_counter = 0;
+
+static void
+memory_check(void)
+{
+	FILE *fp;
+	char line[128];
+	unsigned long mem_available = 0;
+
+	if (++memcheck_counter < 6)
+		return;
+	memcheck_counter = 0;
+
+	fp = fopen("/proc/meminfo", "r");
+	if (!fp)
+		return;
+
+	while (fgets(line, sizeof(line), fp)) {
+		if (sscanf(line, "MemAvailable: %lu kB", &mem_available) == 1)
+			break;
+	}
+	fclose(fp);
+
+	if (mem_available == 0)
+		return;
+
+	if (mem_available < 5120) {
+		logmessage("watchdog", "critical low memory: %lu kB, dropping caches!", mem_available);
+		fput_int("/proc/sys/vm/drop_caches", 3);
+	} else if (mem_available < 10240) {
+		logmessage("watchdog", "low memory warning: %lu kB", mem_available);
+		fput_int("/proc/sys/vm/drop_caches", 1);
 	}
 }
 
@@ -550,6 +586,9 @@ watchdog_on_timer(void)
 	/* DNS/DHCP server check */
 	if (!is_ap_mode)
 		dnsmasq_process_check();
+
+	/* memory pressure check */
+	memory_check();
 
 	inet_handler(is_ap_mode);
 

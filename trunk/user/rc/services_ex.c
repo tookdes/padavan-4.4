@@ -34,7 +34,7 @@
 
 #include "rc.h"
 
-#define DHCPD_STATIC_MAX	64
+#define DHCPD_STATIC_MAX	256
 #define DHCPD_MULTIMAC_MAX	8
 #define DHCPD_RANGE_DEF_TAG	"lan"
 #define DHCPD_HOSTS_DIR		"/etc/dnsmasq/dhcp"
@@ -106,11 +106,13 @@ fill_static_ethers(const char *lan_ip, const char *lan_mask)
 {
 	FILE *fp[3];
 	in_addr_t ip4, ip4_lan;
-	struct ip4_items_t ip4_list[DHCPD_STATIC_MAX];
+	struct ip4_items_t *ip4_list;
 	int i, j, i_max_items, i_arp_bind;
 	char dh_fn[64], nvram_key[32], *smac, *sip4, *shname;
 
-	memset(ip4_list, 0, sizeof(ip4_list));
+	ip4_list = calloc(DHCPD_STATIC_MAX, sizeof(struct ip4_items_t));
+	if (!ip4_list)
+		return;
 
 	mkdir_if_none(DHCPD_HOSTS_DIR, "755");
 	snprintf(dh_fn, sizeof(dh_fn), "%s/dhcp-hosts.rc", DHCPD_HOSTS_DIR);
@@ -134,10 +136,12 @@ fill_static_ethers(const char *lan_ip, const char *lan_mask)
 				char ip[16];
 				char name[64];
 			};
-			struct dhcp_sort_item dhcp_items[DHCPD_STATIC_MAX];
+			struct dhcp_sort_item *dhcp_items;
 			int k, changed = 0;
 
-			memset(dhcp_items, 0, sizeof(dhcp_items));
+			dhcp_items = calloc(DHCPD_STATIC_MAX, sizeof(struct dhcp_sort_item));
+			if (!dhcp_items)
+				goto out_ip4;
 
 			for (j = 0; j < i_max_items; j++) {
 				snprintf(nvram_key, sizeof(nvram_key), "dhcp_staticmac_x%d", j);
@@ -197,6 +201,7 @@ fill_static_ethers(const char *lan_ip, const char *lan_mask)
 				nvram_commit();
 			}
 		}
+		free(dhcp_items);
 		/* End auto-sort */
 
 		/* first pass */
@@ -288,6 +293,9 @@ fill_static_ethers(const char *lan_ip, const char *lan_mask)
 				free(ipl->hname);
 		}
 	}
+
+out_ip4:
+	free(ip4_list);
 
 	for (i = 0; i < ARRAY_SIZE(fp); i++) {
 		if (fp[i])
@@ -577,8 +585,13 @@ start_dns_dhcpd(int is_ap_mode)
 	if (is_dns_used)
 		fill_dnsmasq_servers();
 
-	if (is_dns_used || is_dhcp_used)
-		return eval("/usr/sbin/dnsmasq");
+	if (is_dns_used || is_dhcp_used) {
+		int ret = eval("/usr/sbin/dnsmasq");
+		pid_t pid = pids("dnsmasq");
+		if (pid > 0)
+			oom_score_adjust(pid, OOM_SCORE_ADJ_MIN);
+		return ret;
+	}
 
 	return 0;
 }

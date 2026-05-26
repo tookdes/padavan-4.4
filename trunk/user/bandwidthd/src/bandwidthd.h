@@ -66,7 +66,7 @@ typedef u_int16_t uint16_t;
 
 #include <syslog.h>
 
-#define IP_NUM 4000			// TODO: Do this dynamicly to save ram and/or scale bigger
+#define IP_NUM 1024			// Reduced from 4000 to save RAM on embedded routers
 #define SUBNET_NUM 100
 
 #define XWIDTH 900

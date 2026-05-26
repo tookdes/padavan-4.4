@@ -657,6 +657,10 @@ start_httpd(int restart_fw)
 
 	_eval(httpd_argv, NULL, 0, NULL);
 
+	pid_t httpd_pid = pids("httpd");
+	if (httpd_pid > 0)
+		oom_score_adjust(httpd_pid, OOM_SCORE_ADJ_MIN);
+
 	nvram_set_int_temp("httpd_started", 1);
 
 	if (restart_fw && restart_fw_need && nvram_match("fw_enable_x", "1"))
