@@ -200,8 +200,8 @@ fill_static_ethers(const char *lan_ip, const char *lan_mask)
 				}
 				nvram_commit();
 			}
+			free(dhcp_items);
 		}
-		free(dhcp_items);
 		/* End auto-sort */
 
 		/* first pass */
