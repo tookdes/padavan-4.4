@@ -105,7 +105,7 @@ function validForm(){
 			return false;
 	}
 
-	if (ip6_con!="" && document.form.ip6_lan_radv[0].checked && (parseInt(document.form.ip6_lan_dhcp.value)>1)){
+	if (ip6_con!="" && ip6_con!="passthrough" && document.form.ip6_lan_radv[0].checked && (parseInt(document.form.ip6_lan_dhcp.value)>1)){
 		var o1 = document.form.ip6_lan_sfps_fake;
 		var o2 = document.form.ip6_lan_sfpe_fake;
 		if(!validate_range_hex(o1, 2, 65534))
@@ -248,15 +248,28 @@ function change_ip6_service(){
 		
 		if (ppp) warn = true;
 	}
+	else if (ip6_con=="passthrough") {
+		$('tbl_ip6_sit').style.display="none";
+		$('row_ip6_wan_dhcp').style.display="none";
+		$('row_ip6_dns_auto').style.display="none";
+		$('row_ip6_lan_auto').style.display="none";
+		inputRCtrl2(document.form.ip6_dns_auto, 1);
+		inputRCtrl2(document.form.ip6_lan_auto, 0);
+		$j('#ip6_dns_auto_on_of').iState(0);
+		$j('#ip6_lan_auto_on_of').iState(1);
+		if (ppp) {
+			document.form.ip6_wan_if.value = "1";
+		}
+	}
 	else {
 		ip6on = false;
 	}
 
 	showhide_div('row_wan_type', ip6on);
 	showhide_div('row_wan_if', (pppif && ip6on));
-	showhide_div('tbl_ip6_wan', ip6on);
-	showhide_div('tbl_ip6_dns', ip6on);
-	showhide_div('tbl_ip6_lan', ip6on);
+	showhide_div('tbl_ip6_wan', ip6on && ip6_con!="passthrough");
+	showhide_div('tbl_ip6_dns', ip6on && ip6_con!="passthrough");
+	showhide_div('tbl_ip6_lan', ip6on && ip6_con!="passthrough");
 
 	if (!ip6on) {
 		showhide_div('tbl_ip6_sit', 0);
@@ -300,7 +313,7 @@ function change_ip6_6rd_dhcp(){
 		val_addr = val_man;
 		inputCtrl(document.form.ip6_6rd_relay, val_man);
 		inputCtrl(document.form.ip6_6rd_size, val_man);
-	} else if (ip6_con == "dhcp6" || ip6_con == "6to4") {
+	} else if (ip6_con == "dhcp6" || ip6_con == "6to4" || ip6_con == "passthrough") {
 		val_addr = 0;
 		val_gate = 0;
 	} else {
@@ -421,6 +434,7 @@ function change_ip6_lan_dhcp(){
                                                     <option value="6in4" <% nvram_match_x("", "ip6_service", "6in4", "selected"); %>>Tunnel 6in4</option>
                                                     <option value="6to4" <% nvram_match_x("", "ip6_service", "6to4", "selected"); %>>Tunnel 6to4</option>
                                                     <option value="6rd" <% nvram_match_x("", "ip6_service", "6rd", "selected"); %>>Tunnel 6rd</option>
+                                                    <option value="passthrough" <% nvram_match_x("", "ip6_service", "passthrough", "selected"); %>>Passthrough / Relay</option>
                                                 </select>
                                             </td>
                                         </tr>

@@ -24,13 +24,18 @@
 #include <time.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/ioctl.h>
 #include <netinet/in.h>
+#include <net/if.h>
 #include <net/route.h>
 #include <net/ethernet.h>
+#include <net/if_arp.h>
 
 #include "rc.h"
 
 #if defined (USE_IPV6)
+
+#define IPV6_PT_IFNAME	"ip6_pt_ifname"
 
 void build_dns6_var(void)
 {
@@ -88,7 +93,8 @@ int is_wan_addr6_static(void)
 		return -1;
 
 	if (ipv6_type == IPV6_NATIVE_DHCP6 ||
-	    ipv6_type == IPV6_6TO4)
+	    ipv6_type == IPV6_6TO4 ||
+	    ipv6_type == IPV6_PASSTHROUGH)
 		return 0;
 
 	if (ipv6_type == IPV6_NATIVE_STATIC ||
@@ -105,6 +111,9 @@ int is_wan_dns6_static(void)
 
 	if (ipv6_type == IPV6_DISABLED)
 		return -1;
+
+	if (ipv6_type == IPV6_PASSTHROUGH)
+		return 0;
 
 	if (nvram_match("ip6_dns_auto", "0") || 
 	    ipv6_type == IPV6_NATIVE_STATIC || 
@@ -123,6 +132,9 @@ int is_wan_ipv6_type_sit(void)
 	if (ipv6_type == IPV6_DISABLED)
 		return -1;
 
+	if (ipv6_type == IPV6_PASSTHROUGH)
+		return 0;
+
 	if (ipv6_type == IPV6_6IN4 ||
 	    ipv6_type == IPV6_6TO4 ||
 	    ipv6_type == IPV6_6RD)
@@ -133,10 +145,138 @@ int is_wan_ipv6_type_sit(void)
 
 int is_wan_ipv6_if_ppp(void)
 {
+	if (get_ipv6_type() == IPV6_PASSTHROUGH)
+		return 0;
+
 	if (nvram_get_int("ip6_wan_if") == 0)
 		return 1;
 
 	return 0;
+}
+
+static int is_ethernet_if(const char *ifname)
+{
+	struct ifreq ifr;
+	int sockfd, ret;
+
+	if (!ifname || !*ifname)
+		return 0;
+
+	if ((sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
+		return 0;
+
+	memset(&ifr, 0, sizeof(ifr));
+	strncpy(ifr.ifr_name, ifname, IFNAMSIZ - 1);
+	ret = (ioctl(sockfd, SIOCGIFHWADDR, &ifr) == 0 && ifr.ifr_hwaddr.sa_family == ARPHRD_ETHER);
+	close(sockfd);
+
+	return ret;
+}
+
+static void unset_ipv6_passthrough_rules(const char *ifname)
+{
+	int i;
+
+	if (!ifname || !*ifname)
+		return;
+
+	for (i = 0; i < 32; i++) {
+		if (doSystem("ebtables -t broute -D BROUTING -i %s -p ! IPv6 -j DROP 2>/dev/null", ifname) != 0)
+			break;
+	}
+	for (i = 0; i < 32; i++) {
+		if (doSystem("ebtables -D FORWARD -i %s -p ! IPv6 -j DROP 2>/dev/null", ifname) != 0)
+			break;
+	}
+	for (i = 0; i < 32; i++) {
+		if (doSystem("ebtables -D FORWARD -o %s -p ! IPv6 -j DROP 2>/dev/null", ifname) != 0)
+			break;
+	}
+}
+
+static void set_ipv6_passthrough_rules(const char *ifname)
+{
+	if (!ifname || !*ifname)
+		return;
+
+	unset_ipv6_passthrough_rules(ifname);
+	doSystem("ebtables -t broute -A BROUTING -i %s -p ! IPv6 -j DROP", ifname);
+	doSystem("ebtables -A FORWARD -i %s -p ! IPv6 -j DROP", ifname);
+	doSystem("ebtables -A FORWARD -o %s -p ! IPv6 -j DROP", ifname);
+}
+
+static void cleanup_ipv6_passthrough_if(const char *ifname)
+{
+	if (!ifname || !*ifname)
+		return;
+
+	unset_ipv6_passthrough_rules(ifname);
+	br_add_del_if(IFNAME_BR, ifname, 0);
+	control_if_ipv6_radv(ifname, 0);
+	control_if_ipv6_autoconf(ifname, 0);
+}
+
+void stop_ipv6_passthrough(const char *wan_ifname, int unit)
+{
+	char *pt_ifname = nvram_safe_get(IPV6_PT_IFNAME);
+
+	if ((!wan_ifname || !*wan_ifname) && !*pt_ifname)
+		return;
+
+	cleanup_ipv6_passthrough_if(wan_ifname);
+	if (*pt_ifname && (!wan_ifname || strcmp(pt_ifname, wan_ifname)))
+		cleanup_ipv6_passthrough_if(pt_ifname);
+
+	control_if_ipv6_radv(IFNAME_BR, 0);
+	control_if_ipv6_autoconf(IFNAME_BR, 0);
+	clear_if_route6(IFNAME_BR);
+	clear_if_addr6(IFNAME_BR);
+	clear_if_neigh6(IFNAME_BR);
+
+	set_wan_unit_value(unit, "ifname6", "");
+	nvram_set_temp(IPV6_PT_IFNAME, "");
+}
+
+static void start_ipv6_passthrough(const char *wan_ifname, int unit)
+{
+	int ret;
+
+	stop_ipv6_passthrough(wan_ifname, unit);
+
+	if (!is_ethernet_if(wan_ifname)) {
+		logmessage("IPv6 Passthrough", "skip non-ethernet interface %s", wan_ifname ? wan_ifname : "");
+		return;
+	}
+
+	module_smart_load("ip6table_mangle", NULL);
+	module_smart_load("ebtable_broute", NULL);
+	module_smart_load("ebtable_filter", NULL);
+	module_smart_load("ebt_ip6", NULL);
+
+	control_if_ipv6_dad(IFNAME_BR, 1);
+	control_if_ipv6_dad(wan_ifname, 1);
+	control_if_ipv6(IFNAME_BR, 1);
+	control_if_ipv6(wan_ifname, 1);
+	control_if_ipv6_autoconf(wan_ifname, 0);
+	control_if_ipv6_radv(wan_ifname, 0);
+	control_if_ipv6_autoconf(IFNAME_BR, 1);
+	control_if_ipv6_radv(IFNAME_BR, 1);
+
+	ret = br_add_del_if(IFNAME_BR, wan_ifname, 1);
+	if (ret != 0) {
+		logmessage("IPv6 Passthrough", "failed to add %s to %s (ret=%d)", wan_ifname, IFNAME_BR, ret);
+		cleanup_ipv6_passthrough_if(wan_ifname);
+		control_if_ipv6_radv(IFNAME_BR, 0);
+		control_if_ipv6_autoconf(IFNAME_BR, 0);
+		set_wan_unit_value(unit, "ifname6", "");
+		return;
+	}
+
+	set_ipv6_passthrough_rules(wan_ifname);
+
+	set_wan_unit_value(unit, "ifname6", IFNAME_BR);
+	nvram_set_temp(IPV6_PT_IFNAME, wan_ifname);
+	logmessage("IPv6 Passthrough", "enabled on %s -> %s", wan_ifname, IFNAME_BR);
 }
 
 void store_ip6rd_from_dhcp(const char *env_value, const char *prefix)
@@ -348,6 +488,11 @@ void wan6_up(char *wan_ifname, int unit)
 
 	control_if_ipv6_dad(IFNAME_BR, 1);
 
+	if (ipv6_type == IPV6_PASSTHROUGH) {
+		start_ipv6_passthrough(wan_ifname, unit);
+		return;
+	}
+
 	if (ipv6_type == IPV6_6IN4 || ipv6_type == IPV6_6TO4 || ipv6_type == IPV6_6RD) {
 		set_wan_unit_value(unit, "ifname6", IFNAME_SIT);
 		
@@ -397,6 +542,13 @@ void wan6_down(char *wan_ifname, int unit)
 		return;
 
 	stop_dhcp6c();
+
+	if (ipv6_type == IPV6_PASSTHROUGH) {
+		stop_ipv6_passthrough(wan_ifname, unit);
+		set_wan_unit_value(unit, "dns6", "");
+		return;
+	}
+
 	control_if_ipv6_radv(wan_ifname, 0);
 	control_if_ipv6_autoconf(wan_ifname, 0);
 
@@ -553,4 +705,3 @@ void stop_dhcp6c(void)
 }
 
 #endif
-

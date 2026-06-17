@@ -65,6 +65,9 @@ int is_lan_radv_on(void)
 	if (ipv6_type == IPV6_DISABLED)
 		return -1;
 
+	if (ipv6_type == IPV6_PASSTHROUGH)
+		return 0;
+
 	if (nvram_invmatch("ip6_lan_radv", "0"))
 		return 1;
 
@@ -77,6 +80,9 @@ int is_lan_addr6_static(void)
 
 	if (ipv6_type == IPV6_DISABLED)
 		return -1;
+
+	if (ipv6_type == IPV6_PASSTHROUGH)
+		return 0;
 
 	if (ipv6_type == IPV6_6TO4 ||
 	    ipv6_type == IPV6_6RD)
@@ -93,6 +99,9 @@ int is_lan_addr6_static(void)
 int get_lan_dhcp6s_mode(void)
 {
 	if (get_ipv6_type() == IPV6_DISABLED)
+		return -1;
+
+	if (get_ipv6_type() == IPV6_PASSTHROUGH)
 		return -1;
 
 	return nvram_get_int("ip6_lan_dhcp");

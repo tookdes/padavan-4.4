@@ -793,6 +793,7 @@ int get_ipv6_type(void)
 		"6in4",		// IPV6_6IN4
 		"6to4",		// IPV6_6TO4
 		"6rd",		// IPV6_6RD
+		"passthrough",	// IPV6_PASSTHROUGH
 		NULL
 	};
 
@@ -912,5 +913,4 @@ char *get_ifaddr6(const char *ifname, int linklocal, char *p_addr6s)
 }
 #endif
 #endif
-
 

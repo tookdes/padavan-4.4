@@ -164,7 +164,8 @@ enum {
 	IPV6_NATIVE_DHCP6,
 	IPV6_6IN4,
 	IPV6_6TO4,
-	IPV6_6RD
+	IPV6_6RD,
+	IPV6_PASSTHROUGH
 };
 
 extern in_addr_t inet_addr_safe(const char *cp);

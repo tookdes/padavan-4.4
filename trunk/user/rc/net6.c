@@ -152,6 +152,8 @@ void full_restart_ipv6(int ipv6_type_old)
 	stop_upnp();
 	stop_dhcp6c();
 	stop_dns_dhcpd();
+	if (ipv6_type_old == IPV6_PASSTHROUGH)
+		stop_ipv6_passthrough(get_man_ifname(0), 0);
 
 	if (ipv6_type == IPV6_DISABLED) {
 		clear_all_route6();
@@ -290,4 +292,3 @@ int ipv6_compact(const char *str6, char *p_comp6, int allow_prefix)
 
 
 #endif
-
