@@ -371,6 +371,7 @@ void store_ip6rd_from_dhcp(const char *env_value, const char *prefix);
 char *get_wan_addr6_host(char *p_addr6s);
 void start_sit_tunnel(int ipv6_type, char *wan_ifname, char *wan_addr4, char *wan_gate4, char *wan_addr6);
 void stop_sit_tunnel(void);
+void reload_ipv6_passthrough_rules(void);
 void stop_ipv6_passthrough(const char *wan_ifname, int unit);
 void wan6_up(char *wan_ifname, int unit);
 void wan6_down(char *wan_ifname, int unit);

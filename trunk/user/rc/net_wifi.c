@@ -1198,11 +1198,20 @@ restart_guest_lan_isolation(void)
 #endif
 		if (is_need_ebtables & 0x01)
 			ebtables_filter_guest_ap(rt_ifname_guest, 0, i_need_dhcp);
+#if defined (USE_IPV6)
+		reload_ipv6_passthrough_rules();
+#endif
 	}
 	else if (is_module_loaded("ebtables")) {
 		doSystem("ebtables %s", "-F");
 		doSystem("ebtables %s", "-X");
-		
+
+#if defined (USE_IPV6)
+		if (get_ipv6_type() == IPV6_PASSTHROUGH) {
+			reload_ipv6_passthrough_rules();
+			return;
+		}
+#endif
 		module_smart_unload("ebt_ip", 0);
 		module_smart_unload("ebtable_filter", 0);
 		module_smart_unload("ebtables", 0);
@@ -1474,4 +1483,3 @@ timecheck_wifi(int is_aband, const char *nv_date, const char *nv_time1, const ch
 
 	return 0;
 }
-

@@ -194,15 +194,36 @@ static void unset_ipv6_passthrough_rules(const char *ifname)
 	}
 }
 
-static void set_ipv6_passthrough_rules(const char *ifname)
+static int load_ipv6_passthrough_modules(void)
+{
+	module_smart_load("ip6table_mangle", NULL);
+	module_smart_load("ebtable_broute", NULL);
+	module_smart_load("ebtable_filter", NULL);
+	module_smart_load("ebt_ip6", NULL);
+
+	if (!is_module_loaded("ebtable_broute") ||
+	    !is_module_loaded("ebtable_filter") ||
+	    !is_module_loaded("ebt_ip6"))
+		return 0;
+
+	return 1;
+}
+
+static int set_ipv6_passthrough_rules(const char *ifname)
 {
 	if (!ifname || !*ifname)
-		return;
+		return -1;
 
 	unset_ipv6_passthrough_rules(ifname);
-	doSystem("ebtables -t broute -A BROUTING -i %s -p ! IPv6 -j DROP", ifname);
-	doSystem("ebtables -A FORWARD -i %s -p ! IPv6 -j DROP", ifname);
-	doSystem("ebtables -A FORWARD -o %s -p ! IPv6 -j DROP", ifname);
+	if (doSystem("ebtables -t broute -A BROUTING -i %s -p ! IPv6 -j DROP", ifname) != 0 ||
+	    doSystem("ebtables -A FORWARD -i %s -p ! IPv6 -j DROP", ifname) != 0 ||
+	    doSystem("ebtables -A FORWARD -o %s -p ! IPv6 -j DROP", ifname) != 0) {
+		unset_ipv6_passthrough_rules(ifname);
+		logmessage("IPv6 Passthrough", "failed to install ebtables rules for %s", ifname);
+		return -1;
+	}
+
+	return 0;
 }
 
 static void cleanup_ipv6_passthrough_if(const char *ifname)
@@ -214,6 +235,26 @@ static void cleanup_ipv6_passthrough_if(const char *ifname)
 	br_add_del_if(IFNAME_BR, ifname, 0);
 	control_if_ipv6_radv(ifname, 0);
 	control_if_ipv6_autoconf(ifname, 0);
+}
+
+void reload_ipv6_passthrough_rules(void)
+{
+	const char *pt_ifname;
+
+	if (get_ipv6_type() != IPV6_PASSTHROUGH)
+		return;
+
+	pt_ifname = nvram_safe_get(IPV6_PT_IFNAME);
+	if (!is_ethernet_if(pt_ifname))
+		return;
+
+	if (!load_ipv6_passthrough_modules() || set_ipv6_passthrough_rules(pt_ifname) != 0) {
+		cleanup_ipv6_passthrough_if(pt_ifname);
+		control_if_ipv6_radv(IFNAME_BR, 0);
+		control_if_ipv6_autoconf(IFNAME_BR, 0);
+		set_wan_unit_value(0, "ifname6", "");
+		nvram_set_temp(IPV6_PT_IFNAME, "");
+	}
 }
 
 void stop_ipv6_passthrough(const char *wan_ifname, int unit)
@@ -248,10 +289,11 @@ static void start_ipv6_passthrough(const char *wan_ifname, int unit)
 		return;
 	}
 
-	module_smart_load("ip6table_mangle", NULL);
-	module_smart_load("ebtable_broute", NULL);
-	module_smart_load("ebtable_filter", NULL);
-	module_smart_load("ebt_ip6", NULL);
+	if (!load_ipv6_passthrough_modules()) {
+		logmessage("IPv6 Passthrough", "required ebtables modules are unavailable");
+		set_wan_unit_value(unit, "ifname6", "");
+		return;
+	}
 
 	control_if_ipv6_dad(IFNAME_BR, 1);
 	control_if_ipv6_dad(wan_ifname, 1);
@@ -262,6 +304,14 @@ static void start_ipv6_passthrough(const char *wan_ifname, int unit)
 	control_if_ipv6_autoconf(IFNAME_BR, 1);
 	control_if_ipv6_radv(IFNAME_BR, 1);
 
+	if (set_ipv6_passthrough_rules(wan_ifname) != 0) {
+		cleanup_ipv6_passthrough_if(wan_ifname);
+		control_if_ipv6_radv(IFNAME_BR, 0);
+		control_if_ipv6_autoconf(IFNAME_BR, 0);
+		set_wan_unit_value(unit, "ifname6", "");
+		return;
+	}
+
 	ret = br_add_del_if(IFNAME_BR, wan_ifname, 1);
 	if (ret != 0) {
 		logmessage("IPv6 Passthrough", "failed to add %s to %s (ret=%d)", wan_ifname, IFNAME_BR, ret);
@@ -271,8 +321,6 @@ static void start_ipv6_passthrough(const char *wan_ifname, int unit)
 		set_wan_unit_value(unit, "ifname6", "");
 		return;
 	}
-
-	set_ipv6_passthrough_rules(wan_ifname);
 
 	set_wan_unit_value(unit, "ifname6", IFNAME_BR);
 	nvram_set_temp(IPV6_PT_IFNAME, wan_ifname);
