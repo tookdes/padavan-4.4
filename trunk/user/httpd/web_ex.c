@@ -77,7 +77,6 @@ static char post_buf[65535] = {0};
 static char post_buf_backup[65535] = {0};
 static char post_json_buf[65535] = {0};
 static char next_host[128] = {0};
-static char SystemCmd[128] = {0};
 static int  group_del_map[MAX_GROUP_COUNT+2];
 extern void unescape(char *s);
 extern struct evDesc events_desc[];
@@ -159,19 +158,7 @@ sys_script(char *name)
 #endif
 	snprintf(scmd, sizeof(scmd), "/tmp/%s", name);
 
-	if (strcmp(name,"syscmd.sh")==0)
-	{
-		if (SystemCmd[0] && get_login_safe()) {
-			char path_env[64];
-			snprintf(path_env, sizeof(path_env), "PATH=%s", SYS_EXEC_PATH_OPT);
-			putenv(path_env);
-			doSystem("%s >/tmp/syscmd.log 2>&1\n", SystemCmd);
-			SystemCmd[0] = '\0';
-		} else {
-			system("echo -n > /tmp/syscmd.log\n");
-		}
-	}
-	else if (strcmp(name, "syslog.sh")==0)
+	if (strcmp(name, "syslog.sh")==0)
 	{
 		;   // to nothing
 	}
@@ -3502,18 +3489,7 @@ apply_cgi(const char *url, webs_t wp)
 
 	snprintf(next_host, sizeof(next_host), "%s", websGetVar(wp, "next_host", ""));
 
-	if (!strcmp(value, " SystemCmd "))
-	{
-		size_t cmd_len;
-		char *cmd_str = websGetVar(wp, "SystemCmd", "");
-		
-		cmd_len = MIN(sizeof(SystemCmd)-1, strlen(cmd_str));
-		strncpy(SystemCmd, cmd_str, cmd_len);
-		SystemCmd[cmd_len] = '\0';
-		websRedirect(wp, current_url);
-		return 0;
-	}
-	else if (!strcmp(value, " ClearLog "))
+	if (!strcmp(value, " ClearLog "))
 	{
 		// current only syslog implement this button
 		unlink("/tmp/syslog.log");

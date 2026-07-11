@@ -3,6 +3,12 @@
 # Linux kernel .config related params
 ##################################################################
 
+# Baseline userspace exploit mitigations.  Keep these in the shared flags so
+# in-tree daemons do not silently opt out.  RELRO is already supported by the
+# uClibc/toolchain configuration; NOW closes lazy-binding GOT overwrite paths.
+CFLAGS += -fstack-protector-strong -D_FORTIFY_SOURCE=2
+LDFLAGS += -Wl,-z,relro -Wl,-z,now
+
 CFLAGS += $(if $(CONFIG_SMP),-DUSE_SMP,)
 CFLAGS += $(if $(CONFIG_IPV6),-DUSE_IPV6,)
 CFLAGS += $(if $(CONFIG_XFRM),-DUSE_XFRM,)

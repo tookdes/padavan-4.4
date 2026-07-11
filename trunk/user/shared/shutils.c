@@ -159,13 +159,19 @@ void time_zone_x_mapping()
 	else
 		nvram_set("time_zone_x", tmpstr);
 
-	doSystem("echo %s > /etc/TZ", nvram_safe_get("time_zone_x"));
+	{
+		FILE *tzfp = fopen("/etc/TZ", "w");
+		if (tzfp) {
+			fputs(nvram_safe_get("time_zone_x"), tzfp);
+			fputc('\n', tzfp);
+			fclose(tzfp);
+		}
+	}
 }
 
 void change_passwd_unix(char *user, char *pass)
 {
 	FILE *fp;
-	char cmdbuf[64];
 	char *tmpfile = "/tmp/tmpchpw";
 
 	if (!user || !*user)
@@ -176,14 +182,13 @@ void change_passwd_unix(char *user, char *pass)
 
 	fp=fopen(tmpfile, "w");
 	if (fp) {
+		fchmod(fileno(fp), 0600);
 		fprintf(fp, "%s:%s\n", user, pass);
 		fclose(fp);
+		/* Constant command; no user data is interpolated into the shell text. */
+		system("/usr/sbin/chpasswd -m < /tmp/tmpchpw");
 	}
-
-	sprintf(cmdbuf, "/usr/sbin/chpasswd -m < %s", tmpfile);
-	system(cmdbuf);
-	sprintf(cmdbuf, "rm -f %s", tmpfile);
-	system(cmdbuf);
+	unlink(tmpfile);
 
 	chmod("/etc/shadow", 0640);
 }
@@ -644,4 +649,3 @@ logmessage(char *logheader, char *fmt, ...)
 	closelog();
 	va_end(args);
 }
-

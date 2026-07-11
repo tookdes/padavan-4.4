@@ -214,8 +214,11 @@ void rdns(char *Buffer, unsigned long IP)  // This takes over sigalarm!
 		hostent = gethostbyaddr((char *) &addr, 4, AF_INET); // (char *)&Data->IP				
 		alarm(0);
 		
-		if (hostent)
-			sprintf(Buffer, "%s", hostent->h_name);
+		if (hostent) {
+			/* DNS data is untrusted and later rendered into management HTML. */
+			strncpy(Buffer, hostent->h_name, 254);
+			Buffer[254] = '\0';
+		}
 		else
 			{
 	        strncpy(Buffer, None, 253);
@@ -239,6 +242,51 @@ static void rdnslngjmp(int signal)
 	{
     longjmp(dnsjump, 1);
 	}
+
+/* Escape untrusted reverse-DNS hostnames before embedding them in HTML. */
+static void html_escape(const char *src, char *dst, size_t dst_len)
+{
+	size_t o = 0;
+
+	if (!dst || dst_len == 0)
+		return;
+	if (!src) {
+		dst[0] = '\0';
+		return;
+	}
+
+	while (*src && o + 1 < dst_len) {
+		const char *rep = NULL;
+		size_t rep_len = 1;
+		char ch = *src;
+
+		switch (ch) {
+		case '&': rep = "&amp;"; rep_len = 5; break;
+		case '<': rep = "&lt;"; rep_len = 4; break;
+		case '>': rep = "&gt;"; rep_len = 4; break;
+		case '"': rep = "&quot;"; rep_len = 6; break;
+		case '\'': rep = "&#39;"; rep_len = 5; break;
+		default:
+			if ((unsigned char)ch < 0x20) {
+				src++;
+				continue;
+			}
+			break;
+		}
+
+		if (rep) {
+			if (o + rep_len >= dst_len)
+				break;
+			memcpy(dst + o, rep, rep_len);
+			o += rep_len;
+		} else {
+			dst[o++] = ch;
+		}
+		src++;
+	}
+	dst[o] = '\0';
+}
+
 
 void swap(struct SummaryData **a, struct SummaryData **b) {
 	struct SummaryData *temp;
@@ -365,6 +413,7 @@ void MakeIndexPages(int NumIps, struct SummaryData *SummaryData[])
 	char Buffer1[50];
 	char Buffer2[50];
 	char HostName[255];
+	char HostNameEsc[512];
 	char DisplayIP[50];
 
 	WriteTime = time(NULL);
@@ -513,12 +562,14 @@ void MakeIndexPages(int NumIps, struct SummaryData *SummaryData[])
 				{
 				strcpy(Buffer1, "Total");	
 				strcpy(HostName, "总计");
+				html_escape(HostName, HostNameEsc, sizeof(HostNameEsc));
 				strcpy(DisplayIP, "流量"); 
 				}
 			else
 				{	
 				HostIp2CharIp(SummaryData[Counter]->IP, Buffer1);
 				rdns(HostName, SummaryData[Counter]->IP);
+				html_escape(HostName, HostNameEsc, sizeof(HostNameEsc));
 				strcpy(DisplayIP, Buffer1);
 				}
 			fprintf(file,
@@ -537,7 +588,7 @@ void MakeIndexPages(int NumIps, struct SummaryData *SummaryData[])
     				"<img src=\"%s\" alt=\"图例\">\n"
     				"</div>\n",
     				Buffer1, config.tag,              // 锚点
-    				DisplayIP, HostName,                // 标题中的 IP 和主机名
+    				DisplayIP, HostNameEsc,                // 标题中的 IP 和主机名
     				Buffer1, config.tag, Buffer1,     // 发送图像路径和 ALT
     				legend_base64,                    // 图例图片
     				Buffer1, config.tag, Buffer1,     // 接收图像路径和 ALT
@@ -677,6 +728,8 @@ void MakeIndexPages(int NumIps, struct SummaryData *SummaryData[])
 					{
 					HostIp2CharIp(SummaryData[Counter]->IP, Buffer1);
 					rdns(HostName, SummaryData[Counter]->IP);
+					html_escape(HostName, HostNameEsc, sizeof(HostNameEsc));
+					strcpy(DisplayIP, Buffer1);
 					fprintf(file,
     						"<a name=\"%s-%c\"></a>"
     						"<div style=\"background-color:#f0f8ff; border:1px solid #ccc; padding:15px; margin:20px 0;\">\n"
@@ -693,7 +746,7 @@ void MakeIndexPages(int NumIps, struct SummaryData *SummaryData[])
     						"<img src=\"%s\" alt=\"图例\">\n"
     						"</div>\n",
     						Buffer1, config.tag,              // 锚点
-    						DisplayIP, HostName,                // 标题中的 IP 和主机名
+    						DisplayIP, HostNameEsc,                // 标题中的 IP 和主机名
     						Buffer1, config.tag, Buffer1,     // 发送图像路径和 ALT
     						legend_base64,                    // 图例图片
     						Buffer1, config.tag, Buffer1,     // 接收图像路径和 ALT

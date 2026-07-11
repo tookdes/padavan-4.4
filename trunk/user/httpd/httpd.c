@@ -115,12 +115,11 @@ static uaddr login_ip;			// the logined ip
 static char login_mac[18] = {0};	// the logined mac
 static char auth_basic_data[MAX_AUTH_LEN];
 
-#if defined (USE_IPV6)
-static const struct in6_addr in6in4addr_loopback = {{{0x00, 0x00, 0x00, 0x00,
-                                                      0x00, 0x00, 0x00, 0x00,
-                                                      0x00, 0x00, 0xff, 0xff,
-                                                      0x7f, 0x00, 0x00, 0x01}}};
-#endif
+static const char security_headers[] =
+	"X-Content-Type-Options: nosniff\r\n"
+	"X-Frame-Options: DENY\r\n"
+	"Referrer-Policy: no-referrer\r\n"
+	"Content-Security-Policy: frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
 
 kw_t kw_EN = {0, 0, {0, 0, 0, 0}, NULL, NULL};
 kw_t kw_XX = {0, 0, {0, 0, 0, 0}, NULL, NULL};
@@ -186,24 +185,6 @@ static int
 is_uaddr_equal(const uaddr *ip1, const uaddr *ip2)
 {
 	if ((ip1->len > 0) && (ip1->len == ip2->len) && (memcmp(&ip1->addr, &ip2->addr, ip1->len) == 0))
-		return 1;
-
-	return 0;
-}
-
-static int
-is_uaddr_localhost(const uaddr *ip)
-{
-	if (
-#if defined (USE_IPV6)
-	    ((ip->family == AF_INET6) && 
-	    ((memcmp(&ip->addr.in6, &in6addr_loopback, sizeof(struct in6_addr)) == 0) ||
-	     (memcmp(&ip->addr.in6, &in6in4addr_loopback, sizeof(struct in6_addr)) == 0))) ||
-	    ((ip->family == AF_INET) && (ip->addr.in4.s_addr == 0x100007f))
-#else
-	     (ip->addr.in4.s_addr == 0x100007f)
-#endif
-	)
 		return 1;
 
 	return 0;
@@ -524,9 +505,6 @@ http_logout(const uaddr *ip_now)
 static int
 http_login_check(const uaddr *ip_now)
 {
-	if (is_uaddr_localhost(ip_now))
-		return 1;
-
 	if (login_ip.len == 0)
 		return 2;
 
@@ -545,22 +523,19 @@ static int
 initialize_listen_socket(usockaddr* usaP, int http_port)
 {
 	int listen_fd;
-	int sa_family;
+	struct in_addr lan4;
 
-	sa_family = usaP->sa.sa_family;
+	/* Bind only the LAN management address. Relying on the firewall alone
+	 * is brittle under AP/bridge/VPN/IPv6 misconfig; the UI should not listen
+	 * on WAN-facing addresses by default. */
+	lan4.s_addr = inet_addr(nvram_safe_get("lan_ipaddr"));
+	if (lan4.s_addr == INADDR_NONE || lan4.s_addr == 0)
+		lan4.s_addr = inet_addr(DEF_LAN_ADDR);
+
 	memset( usaP, 0, sizeof(usockaddr) );
-#if defined (USE_IPV6)
-	if (sa_family == AF_INET6) {
-		usaP->sa.sa_family = AF_INET6;
-		usaP->sa_in6.sin6_addr = in6addr_any;
-		usaP->sa_in6.sin6_port = htons( http_port );
-	} else
-#endif
-	{
-		usaP->sa.sa_family = AF_INET;
-		usaP->sa_in.sin_addr.s_addr = htonl( INADDR_ANY );
-		usaP->sa_in.sin_port = htons( http_port );
-	}
+	usaP->sa.sa_family = AF_INET;
+	usaP->sa_in.sin_addr = lan4;
+	usaP->sa_in.sin_port = htons( http_port );
 
 	listen_fd = socket( usaP->sa.sa_family, SOCK_STREAM, IPPROTO_TCP );
 	if ( listen_fd < 0 )
@@ -834,6 +809,7 @@ handle_request(FILE *conn_fp, const conn_item_t *item)
 {
 	char line[4096];
 	char *method, *path, *protocol, *authorization, *boundary;
+	char *host, *origin, *referer;
 	char *cur, *end, *cp, *file, *query;
 	int len, login_state, method_id, do_logout, clen = 0;
 	time_t if_modified_since = (time_t)-1;
@@ -842,7 +818,7 @@ handle_request(FILE *conn_fp, const conn_item_t *item)
 	uaddr conn_ip;
 
 	/* Initialize the request variables. */
-	authorization = boundary = NULL;
+	authorization = boundary = host = origin = referer = NULL;
 
 	/* Parse the first line of the request. */
 	if (!fgets(line, sizeof(line), conn_fp)) {
@@ -882,6 +858,24 @@ handle_request(FILE *conn_fp, const conn_item_t *item)
 			cp = cur + 14;
 			cp += strspn( cp, " \t" );
 			authorization = cp;
+			cur = cp + strlen(cp) + 1;
+		}
+		else if (strncasecmp(cur, "Host:", 5) == 0) {
+			cp = cur + 5;
+			cp += strspn(cp, " \t");
+			host = cp;
+			cur = cp + strlen(cp) + 1;
+		}
+		else if (strncasecmp(cur, "Origin:", 7) == 0) {
+			cp = cur + 7;
+			cp += strspn(cp, " \t");
+			origin = cp;
+			cur = cp + strlen(cp) + 1;
+		}
+		else if (strncasecmp(cur, "Referer:", 8) == 0) {
+			cp = cur + 8;
+			cp += strspn(cp, " \t");
+			referer = cp;
 			cur = cp + strlen(cp) + 1;
 		}
 		else if (strncasecmp( cur, "Content-Length:", 15) == 0) {
@@ -993,6 +987,38 @@ handle_request(FILE *conn_fp, const conn_item_t *item)
 			http_login(&conn_ip);
 	}
 
+	/*
+	 * State-changing requests must originate from this management origin.
+	 * Basic authentication is automatically replayed by browsers and is not
+	 * CSRF protection.  Modern browsers send Origin for POST; Referer is kept
+	 * as a compatibility fallback for older WebViews.
+	 */
+	if (method_id == HTTP_METHOD_POST && handler->need_auth) {
+		char expected_http[512], expected_https[512];
+		int same_origin = 0;
+
+		if (host) {
+			host[strcspn(host, "\r\n")] = '\0';
+			snprintf(expected_http, sizeof(expected_http), "http://%s", host);
+			snprintf(expected_https, sizeof(expected_https), "https://%s", host);
+			if (origin) {
+				origin[strcspn(origin, "\r\n")] = '\0';
+				same_origin = !strcmp(origin, expected_http) || !strcmp(origin, expected_https);
+			} else if (referer) {
+				referer[strcspn(referer, "\r\n")] = '\0';
+				same_origin = (!strncmp(referer, expected_http, strlen(expected_http)) &&
+				               (referer[strlen(expected_http)] == '/' || referer[strlen(expected_http)] == '\0')) ||
+				              (!strncmp(referer, expected_https, strlen(expected_https)) &&
+				               (referer[strlen(expected_https)] == '/' || referer[strlen(expected_https)] == '\0'));
+			}
+		}
+		if (!same_origin) {
+			eat_post_data(conn_fp, clen);
+			send_error(403, "Forbidden", NULL, "Cross-origin request rejected.", conn_fp);
+			return;
+		}
+	}
+
 	if (method_id == HTTP_METHOD_POST) {
 		if (handler->input)
 			handler->input(file, conn_fp, clen, boundary);
@@ -1017,7 +1043,13 @@ handle_request(FILE *conn_fp, const conn_item_t *item)
 		}
 	}
 
-	send_headers( 200, "OK", handler->extra_header, handler->mime_type, p_st, conn_fp );
+	if (handler->extra_header) {
+		char combined_headers[1024];
+		snprintf(combined_headers, sizeof(combined_headers), "%s\r\n%s", handler->extra_header, security_headers);
+		send_headers(200, "OK", combined_headers, handler->mime_type, p_st, conn_fp);
+	} else {
+		send_headers(200, "OK", security_headers, handler->mime_type, p_st, conn_fp);
+	}
 
 	if (method_id != HTTP_METHOD_HEAD) {
 		if (handler->output)
@@ -1142,7 +1174,7 @@ main(int argc, char **argv)
 	if (http_port[0]) {
 		if ((listen_fd[0] = initialize_listen_socket(&usa[0], http_port[0])) < 0) {
 			perror("bind");
-			httpd_log("ERROR: can't bind listening port %d to any address!", http_port[0]);
+			httpd_log("ERROR: can't bind listening port %d to LAN address!", http_port[0]);
 			http_port[0] = 0;
 			if (!http_port[1])
 				exit(errno);
@@ -1153,7 +1185,7 @@ main(int argc, char **argv)
 	if (http_port[1]) {
 		if ((listen_fd[1] = initialize_listen_socket(&usa[1], http_port[1])) < 0) {
 			perror("bind");
-			httpd_log("ERROR: can't bind listening port %d to any address!", http_port[1]);
+			httpd_log("ERROR: can't bind listening port %d to LAN address!", http_port[1]);
 			if (listen_fd[0] < 0) {
 				ssl_server_uninit();
 				exit(errno);
@@ -1353,4 +1385,3 @@ main(int argc, char **argv)
 
 	return 0;
 }
-

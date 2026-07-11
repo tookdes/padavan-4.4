@@ -450,7 +450,7 @@ struct nvram_pair router_defaults[] = {
 	{ "ip6_lan_sfps", "4096" }, // 0x1000
 	{ "ip6_lan_sfpe", "4352" }, // 0x1100
 
-	{ "upnp_enable_x", "1" },
+	{ "upnp_enable_x", "0" },
 	{ "upnp_proto", "0" },
 	{ "upnp_secure", "1" },
 	{ "upnp_clean_min", "10" },
@@ -987,7 +987,7 @@ struct nvram_pair router_defaults[] = {
 #endif
 
 	{ "telnetd", "0" },
-	{ "sshd_enable", "1" },
+	{ "sshd_enable", "0" },
 	{ "wins_enable", "0" },
 	{ "lltd_enable", "1" },
 	{ "adsc_enable", "0" },

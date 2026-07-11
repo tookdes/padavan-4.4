@@ -684,10 +684,32 @@ ej_get_all_accounts(int eid, webs_t wp, int argc, char **argv)
 	return 0;
 }
 
+static int
+is_safe_disk_devn(const char *devn)
+{
+	size_t i, n;
+
+	/* Empty is allowed (remove whole port). Otherwise only simple sd/mmc names. */
+	if (!devn || !*devn)
+		return 1;
+
+	n = strlen(devn);
+	if (n > 32)
+		return 0;
+
+	for (i = 0; i < n; i++) {
+		unsigned char c = (unsigned char)devn[i];
+		if (!isalnum(c) && c != '_' && c != '-')
+			return 0;
+	}
+	return 1;
+}
+
 int
 ej_safely_remove_disk(int eid, webs_t wp, int argc, char **argv)
 {
 	int result, port_num;
+	char port_s[16];
 	char *disk_port = websGetVar(wp, "port", "");
 	char *disk_devn = websGetVar(wp, "devn", "");
 
@@ -695,17 +717,29 @@ ej_safely_remove_disk(int eid, webs_t wp, int argc, char **argv)
 	if (port_num < 0)
 		port_num = 0;
 
+	if (!is_safe_disk_devn(disk_devn)) {
+		result = -1;
+	} else
 #if defined (USE_ATA_SUPPORT)
-	if (port_num == ATA_VIRT_PORT_ID)
-		result = doSystem("/sbin/ejata %s", disk_devn);
-	else
+	if (port_num == ATA_VIRT_PORT_ID) {
+		if (disk_devn[0])
+			result = eval("/sbin/ejata", disk_devn);
+		else
+			result = eval("/sbin/ejata");
+	} else
 #endif
 #if defined (USE_MMC_SUPPORT)
 	if (port_num == MMC_VIRT_PORT_ID)
-		result = system("/sbin/ejmmc");
+		result = eval("/sbin/ejmmc");
 	else
 #endif
-		result = doSystem("/sbin/ejusb %d %s", port_num, disk_devn);
+	{
+		snprintf(port_s, sizeof(port_s), "%d", port_num);
+		if (disk_devn[0])
+			result = eval("/sbin/ejusb", port_s, disk_devn);
+		else
+			result = eval("/sbin/ejusb", port_s);
+	}
 
 	if (result != 0) {
 		websWrite(wp, "<script>safely_remove_disk_error(\'%s\');</script>\n", get_alert_msg_from_dict("Action9"));
@@ -1502,8 +1536,9 @@ ej_initial_account(int eid, webs_t wp, int argc, char **argv)
 {
 	disk_info_t *disks_info, *follow_disk;
 	partition_info_t *follow_partition;
-	char *command;
-	int len, result;
+	DIR *dir;
+	struct dirent *entry;
+	char path[PATH_MAX];
 
 	nvram_set_int("acc_num", 0);
 	nvram_commit_safe();
@@ -1519,19 +1554,18 @@ ej_initial_account(int eid, webs_t wp, int argc, char **argv)
 	for (follow_disk = disks_info; follow_disk != NULL; follow_disk = follow_disk->next)
 		for (follow_partition = follow_disk->partitions; follow_partition != NULL; follow_partition = follow_partition->next)
 			if (follow_partition->mount_point != NULL && strlen(follow_partition->mount_point) > 0) {
-				len = strlen("rm -f ")+strlen(follow_partition->mount_point)+strlen("/.__*");
-				command = (char *)malloc(sizeof(char)*(len+1));
-				if (command == NULL) {
-					websWrite(wp, "<script>\n");
-					websWrite(wp, "initial_account_error(\'%s\');\n", get_alert_msg_from_dict("System1"));
-					websWrite(wp, "</script>\n");
-					return -1;
+				/* Avoid passing a device-derived mount point through a root shell. */
+				dir = opendir(follow_partition->mount_point);
+				if (dir) {
+					while ((entry = readdir(dir)) != NULL) {
+						if (strncmp(entry->d_name, ".__", 3) != 0)
+							continue;
+						if (snprintf(path, sizeof(path), "%s/%s", follow_partition->mount_point,
+						             entry->d_name) < (int)sizeof(path))
+							unlink(path);
+					}
+					closedir(dir);
 				}
-				sprintf(command, "rm -f %s/.__*", follow_partition->mount_point);
-				command[len] = 0;
-
-				result = system(command);
-				free(command);
 
 				initial_folder_list_in_mount_path(follow_partition->mount_point);
 				initial_all_var_file_in_mount_path(follow_partition->mount_point);
@@ -1673,4 +1707,3 @@ ej_set_account_permission(int eid, webs_t wp, int argc, char **argv)
 
 	return 0;
 }
-

@@ -239,6 +239,16 @@ int ssl_server_init(char* ca_file, char *crt_file, char *key_file, char *dhp_fil
 			SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION;
 
 	SSL_CTX_set_options(ssl_ctx, ssl_options);
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	if (SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_2_VERSION) != 1) {
+		httpd_log("%s: Unable to enforce TLS 1.2 minimum!", SYSLOG_ID_SSL);
+		SSL_CTX_free(ssl_ctx);
+		ssl_ctx = NULL;
+		return -1;
+	}
+#else
+	SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1);
+#endif
 	SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_NONE, NULL);
 
 	if (ssl_cipher_list && strlen(ssl_cipher_list) > 2) {

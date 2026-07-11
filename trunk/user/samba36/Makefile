@@ -66,8 +66,8 @@ configure:
 		--disable-debug \
 		--disable-avahi \
 		--disable-cups \
-		--disable-pie \
-		--disable-relro \
+		--enable-pie \
+		--enable-relro \
 		--disable-static \
 		--disable-swat \
 		--disable-shared-libs \

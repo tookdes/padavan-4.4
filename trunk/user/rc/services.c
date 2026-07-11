@@ -640,6 +640,10 @@ start_httpd(int restart_fw)
 
 #if defined (SUPPORT_HTTPS)
 	if (http_proto == 1 || http_proto == 2) {
+		/* Generate a per-device certificate before starting an HTTPS-only UI. */
+		if (!check_if_file_exist("/etc/storage/https/server.crt") ||
+		    !check_if_file_exist("/etc/storage/https/server.key"))
+			eval("/usr/bin/https-cert.sh", "-n", nvram_safe_get("lan_ipaddr"), "-b", "2048", "-d", "3653");
 		int https_port = nvram_get_int("https_lport");
 		if (https_port < 81 || https_port > 65535 || https_port == http_port) {
 			https_port = 443;

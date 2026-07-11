@@ -6,11 +6,11 @@ if [ ! -x /usr/bin/openssl ] && [ ! -x /opt/bin/openssl ]; then
   exit 1
 fi
 
-umask 0022
+umask 0077
 
 DH_GEN=0
-DH_BITS=1024
-RSA_BITS=1024
+DH_BITS=2048
+RSA_BITS=2048
 CA_DAYS=3653
 CERT_DAYS=365
 DSTDIR=/etc/storage/https
@@ -69,10 +69,9 @@ create_cert() {
     return 1
   fi
 
-  # Check if -sha256 is supported
+  # SHA-256 is required by the bundled OpenSSL version.
   local DGST_ALG
-  DGST_ALG="-sha1"
-  openssl list -1 --digest-commands 2>&1 | grep -q 'sha256' && DGST_ALG="-sha256"
+	DGST_ALG="-sha256"
 
   rm -f $SSL_EXT_FILE
   cat > $SSL_EXT_FILE << EOF
@@ -84,6 +83,10 @@ extendedKeyUsage=serverAuth,clientAuth
 keyUsage=critical,digitalSignature,keyEncipherment
 subjectAltName=DNS:${CN},DNS:my.router
 EOF
+	# An IPv4 management address is an IP SAN, not a DNS SAN.
+	if echo "$CN" | grep -Eq '^[0-9]{1,3}(\.[0-9]{1,3}){3}$'; then
+		sed -i "s/subjectAltName=.*/subjectAltName=IP:${CN},DNS:my.router/" "$SSL_EXT_FILE"
+	fi
 
   local C_PARAM="rsa:${RSA_BITS}"
   if echo $RSA_BITS | grep -q '^[bpsw]'; then
